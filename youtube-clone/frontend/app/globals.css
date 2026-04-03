@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/* Keep your custom light/dark mode CSS below this line */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* You can leave your other CSS variables below these lines */
+:root {
+  --yt-white: #ffffff;
+  --yt-black: #0f0f0f;
+  --yt-light-grey: #f2f2f2;
+  --yt-border: #e5e5e5;
+  --yt-text-main: #0f0f0f;
+  --yt-text-sub: #606060;
+}
+
+.dark {
+  --yt-white: #0f0f0f;
+  --yt-black: #ffffff;
+  --yt-light-grey: #272727;
+  --yt-border: #3f3f3f;
+  --yt-text-main: #ffffff;
+  --yt-text-sub: #aaaaaa;
+}
+
+body {
+  background-color: var(--yt-white);
+  color: var(--yt-text-main);
+}
+
+/* Category Pills Styling */
+.category-pill {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dark .category-pill {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+/* Update your globals.css */
+@layer base {
+  body {
+    @apply transition-colors duration-500;
+  }
+}
+
+.light body {
+  background-color: #ffffff !important;
+  color: #0f0f0f !important;
+}
+
+.dark body {
+  background-color: #0f0f0f !important;
+  color: #ffffff !important;
+}
+
+/* Sidebar styling for Light Mode */
+.light aside {
+  background-color: #ffffff;
+  border-right: 1px solid #e5e5e5;
+}
+
+/* Text overrides for Light Mode */
+.light .text-gray-400, .light .text-gray-500 {
+  color: #606060;
+}
