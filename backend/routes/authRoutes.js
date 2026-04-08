@@ -3,15 +3,13 @@ const router = express.Router();
 const User = require('../models/User'); 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
-// 🔥 Communication Packages for OTP
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 require('dotenv').config();
 
-// --- COMMUNICATION HELPERS ---
+// --- 1. COMMUNICATION HELPERS ---
 
-// 1. Email Sender (Nodemailer)
+// Task 4: Email OTP for South India
 const sendEmailOTP = async (toEmail, otp) => {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -28,7 +26,6 @@ const sendEmailOTP = async (toEmail, otp) => {
     html: `
       <div style="font-family: Arial, sans-serif; background-color: #0f0f0f; color: white; padding: 40px; text-align: center; border-radius: 10px;">
         <h2 style="color: #dc2626; text-transform: uppercase; letter-spacing: 2px;">Node Access Authorization</h2>
-        <p style="opacity: 0.8;">A login attempt was detected.</p>
         <div style="font-size: 32px; font-weight: bold; letter-spacing: 10px; background-color: #111; padding: 20px; border: 1px solid #333; display: inline-block; margin: 20px 0; border-radius: 10px;">
           ${otp}
         </div>
@@ -36,133 +33,125 @@ const sendEmailOTP = async (toEmail, otp) => {
       </div>
     `
   };
-
   await transporter.sendMail(mailOptions);
 };
 
-// 2. SMS Sender (Twilio)
+// Task 4: SMS OTP for other regions
 const sendMobileOTP = async (toNumber, otp) => {
   const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-  
   await client.messages.create({
-    body: `[YouClone Node] Your secure access code is: ${otp}. Do not share this with anyone.`,
+    body: `[YouClone Node] Your secure access code is: ${otp}`,
     from: process.env.TWILIO_PHONE_NUMBER,
-    to: toNumber // Must include country code, e.g., +919876543210
+    to: toNumber 
   });
 };
 
-// --- HELPER: South India Check ---
+// Task 4: Regional Logic Gate
 const southIndianStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
-const isSouthIndia = (location) => southIndianStates.some(state => location.toLowerCase().includes(state.toLowerCase())) || location.toLowerCase().includes('hyderabad') || location.toLowerCase().includes('secunderabad');
+const isSouthIndia = (location) => {
+  if (!location) return false;
+  const loc = location.toLowerCase();
+  return southIndianStates.some(state => loc.includes(state.toLowerCase())) || 
+         loc.includes('hyderabad') || 
+         loc.includes('secunderabad');
+};
 
-// 1. SIGNUP ROUTE (Task 4: Regional Auth Sync)
+// --- 2. AUTH ROUTES ---
+
+// 1. SIGNUP: Updated for stability
 router.post('/signup', async (req, res) => {
   try {
-    const { name, email, password, phone, location } = req.body;
+    const { name, email, password, location, phone } = req.body;
+    if (!email || !password) return res.status(400).json({ error: "Credentials required." });
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ error: "Node already exists." });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
     
-    let user = await User.findOne({ email });
+    // Create instance first
+    const user = new User({
+      name: name || "Secunderabad Node",
+      email,
+      password: hashedPassword,
+      location: location || "Secunderabad",
+      phone: phone || "",
+      plan: "Free",
+      dailyDownloadCount: 0,
+      lastDownloadDate: new Date()
+    });
 
-    if (!user) {
-      // Securely hash password before saving
-      const hashedPassword = await bcrypt.hash(password, 10);
+    // This triggers the pre('save') hook we just fixed
+    await user.save();
 
-      user = await User.create({
-        name,
-        email,
-        password: hashedPassword,
-        phone: phone || "",
-        location: location || "Secunderabad", 
-        plan: "Free",
-        dailyDownloadCount: 0,
-        lastDownloadDate: new Date()
-      });
-      console.log("🆕 New Node Created:", email);
-    } else {
-        return res.status(400).json({ message: "User already exists." });
-    }
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+    console.log("✅ Node Registered Successfully:", email);
+    return res.status(200).json({ message: "Signup successful", token, user });
 
-    const token = jwt.sign({ id: user._id }, "SECRET_KEY_123", { expiresIn: '7d' });
-    res.status(200).json({ message: "Signup successful", token, user });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("💥 Signup Crash Error:", err.message);
+    return res.status(500).json({ error: err.message });
   }
 });
-
-// 2. LOGIN ROUTE (Task 4: REAL Regional OTP Trigger)
+// LOGIN: Trigger Regional Auth (Task 4)
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid credentials." });
+
+    if (!user) return res.status(400).json({ error: "Node not found." });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid passcode." });
+    if (!isMatch) return res.status(400).json({ error: "Invalid passcode." });
 
-    // Generate a random 6-digit OTP
-    const generatedOTP = Math.floor(100000 + Math.random() * 900000).toString();
-    user.otp = generatedOTP;
-    user.otpExpiry = new Date(Date.now() + 10 * 60000); // 10 minutes expiry
-    await user.save(); // Now this will successfully save to DB!
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.otpExpiry = new Date(Date.now() + 10 * 60000); 
+    await user.save();
 
-    // TASK 4: ACTUAL REGIONAL ROUTING LOGIC
     if (isSouthIndia(user.location)) {
-      try {
-        await sendEmailOTP(user.email, generatedOTP);
-        console.log(`✅ [SUCCESS] Email OTP sent to ${user.email}`);
-        res.status(200).json({ message: "OTP sent to Email", authType: "email", email: user.email });
-      } catch (err) {
-        console.error("Email Error:", err);
-        res.status(500).json({ message: "Failed to send Email OTP. Check console." });
-      }
+      await sendEmailOTP(user.email, otp);
+      return res.status(200).json({ requiresOTP: true, authType: "email", email: user.email });
     } else {
-      try {
-        if (!user.phone) {
-          return res.status(400).json({ message: "No phone number registered for SMS." });
-        }
-        await sendMobileOTP(user.phone, generatedOTP);
-        console.log(`✅ [SUCCESS] SMS OTP sent to ${user.phone}`);
-        res.status(200).json({ message: "OTP sent to Mobile", authType: "mobile", email: user.email });
-      } catch (err) {
-        console.error("SMS Error:", err);
-        res.status(500).json({ message: "Failed to send SMS OTP. Check console." });
-      }
+      console.log(`📡 [SMS SIMULATION] Sending OTP ${otp} to ${user.phone}`);
+  // await sendMobileOTP(formattedPhone, otp); // Comment this out while Twilio is down
+  res.status(200).json({ message: "OTP sent to Mobile (Simulated)", authType: "mobile", email: user.email });
     }
-
   } catch (err) {
-    console.error("Login Error:", err.message);
-    res.status(500).json({ error: "Server error during authentication." });
+    console.error("💥 Login Error:", err.message);
+    return res.status(500).json({ error: "Authentication node failure." });
   }
 });
 
-// 3. VERIFY OTP ROUTE (Finalizes Login)
+// VERIFY OTP: Authorized Entry
 router.post('/verify-otp', async (req, res) => {
   try {
     const { email, otp } = req.body;
     const user = await User.findOne({ email });
 
     if (!user || user.otp !== otp || user.otpExpiry < new Date()) {
-      return res.status(400).json({ message: "Invalid or expired OTP." });
+      return res.status(400).json({ error: "Invalid or expired OTP." });
     }
 
-    // Clear OTP after successful login for security
     user.otp = undefined;
     user.otpExpiry = undefined;
     await user.save();
 
-    const token = jwt.sign({ id: user._id }, "SECRET_KEY_123", { expiresIn: '7d' });
-    res.status(200).json({ message: "Authentication successful", token, user });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+    return res.status(200).json({ message: "Authorized", token, user });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
-// 4. PROFILE FETCH ROUTE
+// --- 3. UTILITY ROUTES ---
+
+// PROFILE: Daily Reset Sync (Task 2)
 router.get('/profile', async (req, res) => {
   try {
     const { email } = req.query;
     const user = await User.findOne({ email }).select('-password');
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ error: "User not found" });
     
     const today = new Date().toDateString();
     const lastDown = new Date(user.lastDownloadDate || Date.now()).toDateString();
@@ -172,45 +161,41 @@ router.get('/profile', async (req, res) => {
       user.lastDownloadDate = new Date();
       await user.save();
     }
-    res.json(user);
+    return res.json(user);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
-// 5. UPDATE PROFILE ROUTE
+// UPDATE: Calibrate Location/Name
 router.post('/update', async (req, res) => {
   try {
     const { email, name, location } = req.body;
     const user = await User.findOneAndUpdate(
       { email },
       { name, location },
-      { returnDocument: 'after' } 
+      { new: true } 
     ).select('-password');
-
-    if (!user) return res.status(404).json({ message: "Node not found" });
-    res.json(user);
+    return res.json(user);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
-// 6. DOWNLOAD TRACKER 
+// INCREMENT DOWNLOAD: Tracker (Task 2)
 router.post('/increment-download', async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    
     if (user) {
       user.dailyDownloadCount += 1;
       user.lastDownloadDate = new Date();
       await user.save();
-      res.json({ success: true, count: user.dailyDownloadCount });
-    } else {
-      res.status(404).json({ message: "User not found" });
+      return res.json({ success: true, count: user.dailyDownloadCount });
     }
+    return res.status(404).json({ error: "User not found" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 

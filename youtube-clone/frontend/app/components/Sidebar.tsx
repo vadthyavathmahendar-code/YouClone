@@ -44,51 +44,49 @@ export default function Sidebar() {
     }
   ];
 
-  return (
-    <aside className="w-[240px] hidden lg:flex flex-col h-[calc(100vh-56px)] sticky top-14 overflow-y-auto no-scrollbar 
+return (
+  <aside className="w-[240px] hidden lg:flex flex-col h-[calc(100vh-56px)] sticky top-14 overflow-y-auto no-scrollbar 
                     bg-white dark:bg-[#0f0f0f] border-r border-gray-100 dark:border-white/5 transition-colors duration-500">
-      <div className="p-3">
-        {sections.map((section, sIdx) => (
-          <div key={sIdx} className={sIdx !== 0 ? "mt-4 pt-4 border-t border-gray-100 dark:border-white/5" : ""}>
-            {section.label && (
-              <h3 className="px-3 py-2 text-[14px] font-black text-black dark:text-white uppercase tracking-tighter opacity-40">
-                {section.label}
-              </h3>
-            )}
-            {section.items.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link 
-                  key={item.label} 
-                  href={item.href} 
-                  className={`flex items-center px-3 py-2.5 rounded-xl mb-1 transition-all group
-                    ${isActive 
-                      ? 'bg-gray-100 dark:bg-[#272727] font-bold shadow-sm' 
-                      : 'hover:bg-gray-50 dark:hover:bg-[#272727]'}`}
-                >
-                  <span className={`mr-5 flex items-center justify-center transition-colors
-                    ${isActive ? 'text-red-600' : 'text-gray-700 dark:text-gray-400 group-hover:text-black dark:group-hover:text-white'}`}>
-                    {item.icon}
-                  </span>
-                  
-                  <span className={`text-[14px] tracking-tight
-                    ${isActive ? 'text-black dark:text-white font-bold' : 'text-gray-800 dark:text-gray-300 group-hover:text-black dark:group-hover:text-white'}`}>
-                    {item.label}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-      
-      {/* Footer info for Sidebar */}
-      <div className="p-6 mt-auto">
-        <p className="text-[10px] opacity-20 font-black uppercase leading-tight">
-          About Press Copyright<br/>Contact us Creators
-        </p>
-        <p className="text-[10px] opacity-10 font-bold mt-4">© 2026 Google LLC</p>
-      </div>
-    </aside>
-  );
+    <div className="p-3">
+      {sections.map((section, sIdx) => (
+        <div key={sIdx} className={sIdx !== 0 ? "mt-4 pt-4 border-t border-gray-100 dark:border-white/5" : ""}>
+          {section.label && (
+            <h3 className="px-3 py-2 text-[12px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest opacity-60">
+              {section.label}
+            </h3>
+          )}
+          {section.items.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link 
+                key={item.label} 
+                href={item.href} 
+                className={`flex items-center px-4 py-3 rounded-xl mb-1 transition-all group
+                  ${isActive 
+                    ? 'bg-gray-100 dark:bg-[#272727] font-bold' 
+                    : 'hover:bg-gray-50 dark:hover:bg-[#272727]'}`}
+              >
+                <span className={`mr-5 flex items-center justify-center transition-colors
+                  ${isActive ? 'text-red-600' : 'text-gray-600 dark:text-gray-400 group-hover:text-black dark:group-hover:text-white'}`}>
+                  {item.icon}
+                </span>
+                
+                <span className={`text-[14px] font-medium tracking-tight
+                  ${isActive ? 'text-black dark:text-white' : 'text-gray-700 dark:text-gray-300 group-hover:text-black dark:group-hover:text-white'}`}>
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+    
+    <div className="p-6 mt-auto">
+      <p className="text-[10px] opacity-40 dark:opacity-20 font-black uppercase leading-tight text-gray-600 dark:text-white">
+        © 2026 YouClone<br/>Secunderabad Node
+      </p>
+    </div>
+  </aside>
+);
 }

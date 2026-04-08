@@ -10,6 +10,12 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET, // Add to your .env
 });
 
+const planDetails = {
+  10: "Bronze",
+  50: "Silver",
+  100: "Gold"
+};
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -38,6 +44,10 @@ router.post('/create-order', async (req, res) => {
 router.post('/verify-payment', async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, email, newPlan, price } = req.body;
 
+  const validatedPlan = planDetails[price]; 
+if (!validatedPlan || validatedPlan !== newPlan) {
+   return res.status(400).json({ message: "Data Tampering Detected" });
+}
   // Verify Signature
   const sign = razorpay_order_id + "|" + razorpay_payment_id;
   const expectedSign = crypto

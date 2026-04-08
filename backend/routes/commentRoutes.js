@@ -1,18 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const Comment = require('../models/Comment');
+const { translate } = require('@vitalets/google-translate-api');
 
-// 1. POST: Save a new comment (WITH TASK 1 BLOCKING LOGIC)
+// 1. POST: Save a new comment (WITH TASK 1 INCLUSIVE BLOCKING)
 router.post('/', async (req, res) => {
   try {
     const { text } = req.body;
 
-    // 🔥 TASK 1: BLOCK SPECIAL CHARACTERS 🔥
-    // This regex allows letters, numbers, spaces, and basic punctuation (. , ! ? ' ")
-    const specialCharRegex = /[^a-zA-Z0-9 \.,!?\'\"]/;
-    if (specialCharRegex.test(text)) {
+    // 🛡️ TASK 1: INCLUSIVE REGEX 
+    // Allows English, Numbers, Punctuation, and Indian Unicode (Telugu, Hindi, etc.)
+    const inclusiveRegex = /^[a-zA-Z0-9\s.,!?\'\"\u00C0-\u1FFF\u2C00-\uD7FF]+$/;
+
+    // Logic: If it DOES NOT match the allowed characters, block it.
+    if (!inclusiveRegex.test(text)) {
       return res.status(400).json({ 
-        message: "Comment blocked! Special characters are not allowed to maintain a clean environment." 
+        message: "Comment blocked! Please avoid symbols like @, #, or $ to keep the environment clean." 
       });
     }
 
@@ -35,7 +38,7 @@ router.get('/video/:videoId', async (req, res) => {
   }
 });
 
-// 3. PUT: Handle Likes/Dislikes & TASK 1 SMART DELETE
+// 3. PUT: Handle Likes/Dislikes & TASK 1 AUTO-MODERATION
 router.put('/:id/vote', async (req, res) => {
   try {
     const { action } = req.body;
@@ -50,31 +53,52 @@ router.put('/:id/vote', async (req, res) => {
       
       // 🔥 TASK 1: AUTO-REMOVE AT 2 DISLIKES 🔥
       if (comment.dislikes >= 2) {
-        await Comment.findByIdAndDelete(req.params.id);
-        return res.status(200).json({ message: "Comment removed due to negative feedback", deleted: true });
+        await comment.deleteOne();
+        return res.status(200).json({ 
+          message: "Comment removed due to negative community feedback", 
+          deleted: true 
+        });
       }
     }
 
     const updatedComment = await comment.save();
     res.status(200).json({ updatedComment, deleted: false });
   } catch (error) {
+    console.error("Vote Error:", error);
     res.status(500).json({ message: "Failed to process vote" });
   }
 });
-
-// 4. POST: TASK 1 TRANSLATION MOCK
-// Real translation would use Google Translate API, but we'll mock it for the internship
+// 4. POST: ACTUAL AI TRANSLATION (TASK 1 INCLUSIVITY)
 router.post('/:id/translate', async (req, res) => {
+  // Define comment outside the try block so the catch block can see it
+  let comment; 
+  
   try {
-    const comment = await Comment.findById(req.params.id);
+    comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    // Mock Translation Logic
-    const translatedText = `[Translated to English]: ${comment.text}`;
-    
-    res.status(200).json({ translatedText });
+    // 🔥 REAL AI TRANSLATION logic
+    const result = await translate(comment.text, { to: 'en' });
+
+    // Safety check: Ensure the translation engine returned the expected data
+    const sourceLang = result?.from?.language?.iso || "unknown";
+
+    console.log(`🌍 Translated from ${sourceLang}: ${result.text}`);
+
+    res.status(200).json({ 
+      translatedText: result.text,
+      sourceLang: sourceLang 
+    });
   } catch (error) {
-    res.status(500).json({ message: "Translation failed" });
+    console.error("Translation Engine Error:", error.message);
+
+    // Fallback: Use the text from the comment we found, or a generic message
+    const fallbackText = comment ? comment.text : "Original text unavailable";
+    
+    res.status(200).json({ 
+      translatedText: `[Translation Service Busy]: ${fallbackText}`,
+      error: true 
+    });
   }
 });
 

@@ -43,25 +43,25 @@ export default function ProfilePage() {
 
     fetchProfile();
   }, [router]);
+const handleSave = async () => {
+  try {
+    const res = await fetch(`http://localhost:5000/api/auth/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, ...formData })
+    });
 
-  const handleSave = async () => {
-    try {
-      const res = await fetch(`http://localhost:5000/api/auth/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user.email, ...formData })
-      });
-
-      if (res.ok) {
-        setUser({ ...user, ...formData });
-        setIsEditing(false);
-        localStorage.setItem('userName', formData.name);
-        localStorage.setItem('userLocation', formData.location);
-        alert("✅ Channel Configuration Saved!");
-        window.location.reload(); 
-      }
-    } catch (err) { alert("❌ Sync Error"); }
-  };
+    if (res.ok) {
+      const updatedUser = await res.json(); // Backend returns the new user object
+      setUser(updatedUser); 
+      setIsEditing(false);
+      localStorage.setItem('userName', formData.name);
+      localStorage.setItem('userLocation', formData.location);
+      alert("✅ Node Configuration Published!");
+      setActiveTab('home'); // Switch back to home to see changes
+    }
+  } catch (err) { alert("❌ Sync Error"); }
+};
 
   const handleLogout = () => {
     localStorage.clear(); 
@@ -101,14 +101,14 @@ export default function ProfilePage() {
           
           {/* Avatar */}
           <div className="w-24 h-24 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-red-600 to-purple-800 flex items-center justify-center text-4xl md:text-7xl font-bold text-white shadow-2xl border-4 border-[#0f0f0f] flex-shrink-0">
-            {user?.name?.[0]}
-          </div>
+  {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+</div>
 
           {/* Details */}
           <div className="flex-1 pt-2 md:pt-0">
             <h1 className="text-2xl md:text-4xl font-bold tracking-tight mb-1">{user?.name}</h1>
             <div className="flex flex-wrap items-center gap-2 text-sm text-[#aaaaaa] mb-3">
-              <span>@{user?.email.split('@')[0]}</span>
+              <span>@{user?.email ? user.email.split('@')[0] : 'loading...'}</span>
               <span>•</span>
               <span className="flex items-center gap-1 text-red-500 font-medium"><MapPin size={14}/> {user?.location} Node</span>
               <span>•</span>
@@ -170,8 +170,10 @@ export default function ProfilePage() {
                   <div className="flex flex-col justify-center max-w-xl">
                     <h3 className="text-xl font-bold mb-2">YouClone System Status: Optimal</h3>
                     <p className="text-sm text-[#aaaaaa] mb-4 leading-relaxed">
-                      Your current plan is <span className="text-white font-bold">{user?.plan}</span>. You have utilized {user?.dailyDownloadCount} out of your allowed daily downloads. Upgrade to Gold for unlimited access.
-                    </p>
+  Your current plan is <span className="text-white font-bold">{user?.plan}</span>. 
+  You have used <span className="text-red-500 font-bold">{user?.dailyDownloadCount || 0}</span> daily downloads. 
+  {user?.plan === 'Free' ? "Upgrade to Gold for unlimited access." : "Enjoy your premium access!"}
+</p>
                     <div className="flex gap-3">
                       <Link href="/home" className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors">
                         <PlayCircle size={18} /> Start Streaming
@@ -220,7 +222,7 @@ export default function ProfilePage() {
                     </div>
 
                     <div>
-                      <label className="text-xs text-[#aaaaaa] uppercase tracking-wider font-bold mb-2 block">Node Region (Task 4 Context)</label>
+                      <label className="text-xs text-[#aaaaaa] uppercase tracking-wider font-bold mb-2 block">Node Region </label>
                       <input 
                         className="w-full bg-transparent border border-[#3f3f3f] rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
                         value={formData.location}
@@ -233,14 +235,14 @@ export default function ProfilePage() {
                         onClick={handleLogout}
                         className="flex items-center gap-2 text-red-500 hover:text-red-400 font-medium text-sm transition-colors"
                       >
-                        <LogOut size={16} /> Terminate Session
+                        <LogOut size={16} /> Logout
                       </button>
 
                       <button 
                         onClick={handleSave}
                         className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-full font-medium text-sm transition-colors"
                       >
-                        <Save size={16} /> Publish Changes
+                        <Save size={16} /> Save Changes
                       </button>
                     </div>
                   </div>
@@ -261,7 +263,7 @@ export default function ProfilePage() {
               <motion.div key="offline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20">
                 <Download size={48} className="text-[#aaaaaa] mb-4" />
                 <h3 className="text-xl font-bold mb-2">Your Offline Library</h3>
-                <p className="text-sm text-[#aaaaaa]">Videos downloaded using Task 2 will appear in your system's native downloads folder.</p>
+                <p className="text-sm text-[#aaaaaa]">Videos downloaded will appear in your system's native downloads folder.</p>
               </motion.div>
             )}
 

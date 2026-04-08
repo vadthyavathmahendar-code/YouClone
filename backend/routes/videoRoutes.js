@@ -87,7 +87,7 @@ router.get('/seed/run', async (req, res) => {
     channelName: "Blender Foundation",
     views: 89030
   },{
-    title: "Sintel - Open Movie",
+    title: "test video",
     description: "A lonely young woman, Sintel, helps and befriends a dragon.",
         videoUrl: "http://localhost:5000/uploads/4.mp4",
     thumbnailUrl: "https://images.pexels.com/photos/701855/pexels-photo-701855.jpeg?auto=compress&cs=tinysrgb&w=800",

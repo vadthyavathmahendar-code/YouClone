@@ -17,43 +17,35 @@ export default function RootLayout({
   const pathname = usePathname();
 
   // Check if we are on a public auth page to hide the Navbar/Sidebar
-  const isAuthPage = pathname === '/' || pathname === '/login' || pathname === '/signup';
-
-  useEffect(() => {
-    const applyRegionalTheme = async () => {
+  const isSpecialPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname.startsWith('/call');
+// ✅ SAFE THEME LOGIC
+useEffect(() => {
+  const applyRegionalTheme = async () => {
+    try {
       const now = new Date();
       const hours = now.getHours();
-      
-      // Requirement: 10:00 AM to 12:00 PM IST
+      // Requirement: 10:00 AM to 12:00 PM
       const isMorningSlot = hours >= 10 && hours < 12;
 
-      try {
-        const response = await fetch('http://ip-api.com/json/');
-        const data = await response.json();
-        const southIndiaStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
-        
-        // Final Decision logic (Strictly based on physical IP)
-        const shouldBeLight = isMorningSlot && southIndiaStates.includes(data.regionName);
-        const selectedTheme = shouldBeLight ? 'light' : 'dark';
+      const response = await fetch('http://ip-api.com/json/');
+      const data = await response.json();
+      const southIndiaStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
+      
+      const isSouthIndia = southIndiaStates.includes(data.regionName);
+      const shouldBeLight = isMorningSlot && isSouthIndia;
+      const selectedTheme = shouldBeLight ? 'light' : 'dark';
 
-        setTheme(selectedTheme);
-        
-        // Force the HTML tag to follow the decision
-        if (selectedTheme === 'light') {
-          document.documentElement.classList.add('light');
-          document.documentElement.classList.remove('dark');
-        } else {
-          document.documentElement.classList.add('dark');
-          document.documentElement.classList.remove('light');
-        }
-      } catch (error) {
-        setTheme('dark');
-        document.documentElement.classList.add('dark');
-      }
-    };
-
-    applyRegionalTheme();
-  }, []);
+      setTheme(selectedTheme);
+      
+      // Update the DOM
+      document.documentElement.className = selectedTheme;
+      document.documentElement.style.colorScheme = selectedTheme;
+    } catch (error) {
+      setTheme('dark'); // Default to Dark on error
+    }
+  };
+  applyRegionalTheme();
+}, []);
 
   return (
     <html lang="en" className={theme || 'dark'} style={{ colorScheme: theme || 'dark' }}>
@@ -69,12 +61,12 @@ export default function RootLayout({
             <div className="flex flex-col min-h-screen">
               
               {/* Only show Navbar if logged in and NOT on an Auth Page */}
-              {!isAuthPage && <Navbar />}
+              {!isSpecialPage && <Navbar />}
               
               <div className="flex flex-1">
                 
                 {/* Only show Sidebar if logged in and NOT on an Auth Page */}
-                {!isAuthPage && <Sidebar />}
+                {!isSpecialPage && <Sidebar />}
                 
                 <main className="flex-1 w-full bg-white dark:bg-[#0f0f0f] transition-all">
                   {children}

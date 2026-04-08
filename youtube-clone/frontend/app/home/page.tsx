@@ -39,6 +39,15 @@ export default function HomeDashboard() {
     checkAuthAndFetch();
   }, [router]);
 
+  useEffect(() => {
+  const location = localStorage.getItem("userLocation");
+  if (location?.toLowerCase().includes("secunderabad") || location?.toLowerCase().includes("hyderabad")) {
+    // Custom greeting for the primary node
+    console.log("📍 Connected to Primary Secunderabad Node");
+    // You could use a toast library here or a simple alert
+  }
+}, []);
+
   if (loading) return (
     <div className="h-screen bg-[#0f0f0f] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>

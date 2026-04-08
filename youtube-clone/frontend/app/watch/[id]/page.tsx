@@ -2,7 +2,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { ThumbsUp, ThumbsDown, Download, Play, Maximize, Languages, MapPin, Loader2 } from 'lucide-react';
-
+const PLAN_LIMITS: Record<string, number> = { 'Free': 300, 'Bronze': 420, 'Silver': 600, 'Gold': 999999 };
 export default function WatchPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -19,32 +19,40 @@ export default function WatchPage() {
   const [currentTime, setCurrentTime] = useState("0:00");
   const [duration, setDuration] = useState("0:00");
   const [watchTime, setWatchTime] = useState(0);
+  const [gesturePulse, setGesturePulse] = useState<string | null>(null);
+  const isLimitReached = watchTime >= PLAN_LIMITS[user?.plan || 'Free'];
 
   const [commentInput, setCommentInput] = useState("");
   const [comments, setComments] = useState<any[]>([]);
-
-  const PLAN_LIMITS: Record<string, number> = { 'Free': 300, 'Bronze': 420, 'Silver': 600, 'Gold': 999999 };
-
   useEffect(() => {
-    const fetchData = async () => {
-      const email = localStorage.getItem('userEmail');
-      try {
-        const vRes = await fetch(`http://localhost:5000/api/videos/${id}`);
-        setVideo(await vRes.json());
-        
-        if (email) {
-          const uRes = await fetch(`http://localhost:5000/api/auth/profile?email=${email}`);
-          const userData = await uRes.json();
-          setUser(userData);
-          localStorage.setItem('userPlan', userData.plan); 
-        }
+  const fetchData = async () => {
+    const email = localStorage.getItem('userEmail');
+    try {
+      const vRes = await fetch(`http://localhost:5000/api/videos/${id}`);
+      const videoData = await vRes.json();
+      setVideo(videoData);
+      
+      if (email) {
+        // 1. Sync Profile
+        const uRes = await fetch(`http://localhost:5000/api/auth/profile?email=${email}`);
+        const userData = await uRes.json();
+        setUser(userData);
+        localStorage.setItem('userPlan', userData.plan); 
 
-        const cRes = await fetch(`http://localhost:5000/api/comments/video/${id}`);
-        setComments(await cRes.json());
-      } catch (err) { console.error("Sync failed", err); }
-    };
-    if (id) fetchData();
-  }, [id]);
+        // 2. 🔥 NEW: Log to Watch History automatically
+        await fetch('http://localhost:5000/api/history', {
+          method: 'POST',
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, videoId: id })
+        });
+      }
+
+      const cRes = await fetch(`http://localhost:5000/api/comments/video/${id}`);
+      setComments(await cRes.json());
+    } catch (err) { console.error("Node Sync failed", err); }
+  };
+  if (id) fetchData();
+}, [id]);
 
   useEffect(() => {
     if (!isPlaying || isLimitReached) return;
@@ -89,7 +97,6 @@ export default function WatchPage() {
     const x = e.clientX - rect.left;
     const width = rect.width;
 
-    // Clear the previous timer if a new click happens
     if (clickTimeoutRef.current) {
       clearTimeout(clickTimeoutRef.current);
       clickTimeoutRef.current = null;
@@ -106,37 +113,49 @@ export default function WatchPage() {
       }, 250); 
     } 
     else if (e.detail === 2) {
+      setGesturePulse(x > width / 2 ? "+10s" : "-10s");
+      setTimeout(() => setGesturePulse(null), 500);
       if (x > width / 2) videoElement.currentTime += 10;
       else videoElement.currentTime -= 10;
       videoElement.play().then(() => setIsPlaying(true)).catch(() => {});
     }
     else if (e.detail === 3) {
-      if (x > width * 0.7) window.close();
-      else if (x < width * 0.3) document.getElementById('comment-box')?.scrollIntoView({ behavior: 'smooth' });
+      if (x > width * 0.7) {
+        window.close();
+      } else if (x < width * 0.3) {
+        document.getElementById('comment-box')?.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        // Task 5: Skip to home/next
+        router.push('/home'); 
+      }
     }
-  };
-
-  const handleDownload = async () => {
-  // 1. EXACT LOGIC: Only 'Free' users are restricted to 1 download. 
-  // Bronze, Silver, and Gold bypass this check entirely.
+  }; // Fixed the closing braces here
+  
+const handleDownload = async () => {
+  // 1. Plan Restriction Check
   if (user?.plan === 'Free' && (user?.dailyDownloadCount || 0) >= 1) {
-    alert("🔒 Daily limit reached for Free users. Upgrade to Premium (Bronze/Silver/Gold) for unlimited downloads!");
+    alert("🔒 Daily limit reached for Free users. Upgrade to Premium for unlimited downloads!");
     router.push('/upgrade');
     return;
   }
 
   try {
-    // 2. TRIGGER DOWNLOAD
-    // Note: Cross-origin restriction might open in new tab instead of direct download
+    // 2. The "Blob" Fix (Ensures the file actually downloads)
+    const response = await fetch(video.videoUrl);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    
     const a = document.createElement('a');
-    a.href = video.videoUrl;
-    a.target = '_blank'; // Required if downloading from a different domain like Archive.org
+    a.href = url;
     a.download = `${video.title.replace(/\s+/g, '_')}.mp4`;
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
     
-    // 3. BACKEND SYNC
+    // Cleanup
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    // 3. Backend Sync (Increments the count in your database)
     if (user?.email) {
       await fetch('http://localhost:5000/api/auth/increment-download', {
         method: 'POST',
@@ -144,17 +163,17 @@ export default function WatchPage() {
         body: JSON.stringify({ email: user.email })
       });
 
-      // Update local state so the UI reflects the new count immediately
-      setUser({
-        ...user, 
-        dailyDownloadCount: (user.dailyDownloadCount || 0) + 1
-      });
+      // Update local state
+      setUser((prev: any) => ({
+        ...prev,
+        dailyDownloadCount: (prev?.dailyDownloadCount || 0) + 1
+      }));
     }
 
-    alert(`✅ Download started! [Node: ${user?.location || 'Secunderabad'}]`);
-  } catch (err) { 
-    console.error(err);
-    alert("Download failed. Please check your connection or backend status."); 
+    alert(`✅ Download started from ${user?.location || 'Secunderabad Node'}!`);
+  } catch (err) {
+    console.error("Download Error:", err);
+    alert("Download failed. This is usually due to CORS settings on the video source.");
   }
 };
 
@@ -204,14 +223,30 @@ export default function WatchPage() {
   };
 
   const handleTranslate = async (commentId: string) => {
-    try {
-      const res = await fetch(`http://localhost:5000/api/comments/${commentId}/translate`, { method: 'POST' });
-      const data = await res.json();
-      setComments(comments.map(c => c._id === commentId ? { ...c, text: data.translatedText } : c));
-    } catch (err) {}
-  };
+  try {
+    // Check if it's already translated (to toggle back)
+    const existing = comments.find(c => c._id === commentId);
+    if (existing?.isTranslated) {
+      setComments(comments.map(c => c._id === commentId ? { ...c, isTranslated: false } : c));
+      return;
+    }
 
-  const isLimitReached = watchTime >= PLAN_LIMITS[user?.plan || 'Free'];
+   const res = await fetch(`http://localhost:5000/api/comments/${commentId}/translate`, { 
+  method: 'POST',
+  headers: { "Content-Type": "application/json" }
+});
+    const data = await res.json();
+    
+    setComments(comments.map(c => c._id === commentId ? { 
+      ...c, 
+      isTranslated: true, 
+      translatedText: data.translatedText 
+    } : c));
+  } catch (err) {
+    console.error("Translation Error:", err);
+  }
+};
+
 
   if (!video) return <div className="h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-red-600"/></div>;
 
@@ -225,6 +260,14 @@ export default function WatchPage() {
             className="w-full h-full pointer-events-none" 
             onTimeUpdate={handleTimeUpdate} autoPlay 
           />
+
+          {gesturePulse && (
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40
+                    bg-black/60 backdrop-blur-sm px-8 py-4 rounded-full 
+                    text-white font-black text-2xl pointer-events-none animate-pulse">
+      {gesturePulse}
+    </div>
+  )}
 
           <div className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer" onClick={handleGestures}>
             {!isPlaying && !isLimitReached && <div className="bg-black/50 p-6 rounded-full"><Play size={48} fill="white" /></div>}
@@ -278,27 +321,61 @@ export default function WatchPage() {
               />
               <button onClick={handlePostComment} className="bg-blue-600 text-white px-8 py-2 rounded-2xl font-black uppercase text-[10px] tracking-widest">Post</button>
            </div>
+<div className="space-y-8">
+  {comments.map((c) => (
+    <div key={c._id || Math.random()} className="flex gap-5 group animate-fadeIn">
+      {/* Dynamic Avatar */}
+      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-red-600 to-purple-600 flex-shrink-0 flex items-center justify-center font-black text-white shadow-lg">
+        {c.user ? c.user[0].toUpperCase() : 'U'}
+      </div>
 
-           <div className="space-y-8">
-              {comments.map((c) => (
-                <div key={c._id || Math.random()} className="flex gap-5 group animate-fadeIn">
-                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-red-600 to-purple-600 flex-shrink-0 flex items-center justify-center font-black text-white">
-                    {c.user ? c.user[0].toUpperCase() : 'U'}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[11px] font-black opacity-30 uppercase tracking-widest">
-                      {c.user || "Anonymous Node"} • {c.city || "Unknown Sector"}
-                    </p>
-                    <p className="text-sm mt-1 font-medium leading-relaxed">{c.text}</p>
-                    <div className="flex items-center gap-6 mt-3">
-                       <button onClick={() => handleVote(c._id, 'like')} className="opacity-40 hover:text-blue-500 transition-colors flex items-center gap-1"><ThumbsUp size={14}/> {c.likes || 0}</button>
-                       <button onClick={() => handleVote(c._id, 'dislike')} className="opacity-40 hover:text-red-500 transition-colors flex items-center gap-1"><ThumbsDown size={14}/> {c.dislikes || 0}</button>
-                       <button onClick={() => handleTranslate(c._id)} className="opacity-20 hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px] font-black uppercase"><Languages size={14}/> Translate</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-           </div>
+      <div className="flex-1">
+        {/* TASK 1: Regional Context (City) */}
+        <p className="text-[11px] font-black opacity-30 uppercase tracking-widest flex items-center gap-1">
+          {c.user || "Anonymous Node"} • 
+          <span className="text-red-600 dark:text-red-400">{c.city || "Secunderabad Node"}</span>
+        </p>
+
+        {/* TASK 1: Translation Rendering */}
+        <p className="text-sm mt-1 font-medium leading-relaxed text-black dark:text-white/90">
+          {c.isTranslated ? (
+            <span className="border-l-2 border-blue-500 pl-3 italic opacity-80">
+              {c.translatedText}
+            </span>
+          ) : (
+            c.text
+          )}
+        </p>
+
+        <div className="flex items-center gap-6 mt-3">
+          {/* Like/Dislike with Task 1 Threshold Logic */}
+          <button 
+            onClick={() => handleVote(c._id, 'like')} 
+            className="opacity-40 hover:opacity-100 hover:text-blue-500 transition-all flex items-center gap-1 active:scale-90"
+          >
+            <ThumbsUp size={14}/> {c.likes || 0}
+          </button>
+
+          <button 
+            onClick={() => handleVote(c._id, 'dislike')} 
+            className="opacity-40 hover:opacity-100 hover:text-red-500 transition-all flex items-center gap-1 active:scale-90"
+          >
+            <ThumbsDown size={14}/> {c.dislikes || 0}
+          </button>
+
+          {/* TASK 1: Translate Toggle */}
+          <button 
+            onClick={() => handleTranslate(c._id)} 
+            className={`transition-all flex items-center gap-1 text-[10px] font-black uppercase tracking-tighter
+              ${c.isTranslated ? 'text-blue-500 opacity-100' : 'opacity-20 hover:opacity-100'}`}
+          >
+            <Languages size={14}/> {c.isTranslated ? "Original" : "Translate"}
+          </button>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
         </div>
       </div>
     </div>
