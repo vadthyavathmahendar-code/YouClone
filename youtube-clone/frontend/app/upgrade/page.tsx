@@ -95,7 +95,7 @@ export default function UpgradePage() {
           Choose Your <span className="text-red-600">Power</span>
         </h1>
         <p className="text-white/40 font-medium tracking-[0.3em] text-xs uppercase">
-          Secunderabad Node • High Speed Access Control
+             High Speed Access Control
         </p>
       </div>
 

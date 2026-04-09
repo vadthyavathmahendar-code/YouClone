@@ -23,8 +23,8 @@ export default function WatchPage() {
   const isLimitReached = watchTime >= PLAN_LIMITS[user?.plan || 'Free'];
 
   const [commentInput, setCommentInput] = useState("");
-  const [comments, setComments] = useState<any[]>([]);
-  useEffect(() => {
+  const [comments, setComments] = useState<any[]>([]);// 1. Initial Data Fetch: Load saved watchTime from DB
+useEffect(() => {
   const fetchData = async () => {
     const email = localStorage.getItem('userEmail');
     try {
@@ -33,13 +33,18 @@ export default function WatchPage() {
       setVideo(videoData);
       
       if (email) {
-        // 1. Sync Profile
+        // Fetch Profile - Includes totalWatchTime from DB
         const uRes = await fetch(`http://localhost:5000/api/auth/profile?email=${email}`);
         const userData = await uRes.json();
         setUser(userData);
         localStorage.setItem('userPlan', userData.plan); 
 
-        // 2. 🔥 NEW: Log to Watch History automatically
+        // 🔥 CRITICAL: Set the local watchTime state to what's saved in the DB
+        if (userData.totalWatchTime) {
+          setWatchTime(userData.totalWatchTime);
+        }
+
+        // Log to Watch History
         await fetch('http://localhost:5000/api/history', {
           method: 'POST',
           headers: { "Content-Type": "application/json" },
@@ -54,22 +59,37 @@ export default function WatchPage() {
   if (id) fetchData();
 }, [id]);
 
-  useEffect(() => {
-    if (!isPlaying || isLimitReached) return;
-    const limit = PLAN_LIMITS[user?.plan || 'Free'];
-    
-    const interval = setInterval(() => {
-      setWatchTime(prev => {
-        if (prev >= limit) {
-          videoRef.current?.pause();
-          setIsPlaying(false);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isPlaying, user, watchTime]);
+// 2. Persistent Timer: Increments time and syncs to DB every 10 seconds
+useEffect(() => {
+  if (!isPlaying || isLimitReached || !user?.email) return;
+  const limit = PLAN_LIMITS[user?.plan || 'Free'];
+  
+  const interval = setInterval(() => {
+    setWatchTime(prev => {
+      const newTime = prev + 1;
+
+      // 🔥 HEARTBEAT SYNC: Save to database every 10 seconds
+      if (newTime % 10 === 0) {
+        fetch('http://localhost:5000/api/users/sync-watchtime', {
+          method: 'POST',
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email, watchTime: newTime })
+        }).catch(err => console.error("Heartbeat failed", err));
+      }
+
+      // Check if limit is hit
+      if (newTime >= limit) {
+        videoRef.current?.pause();
+        setIsPlaying(false);
+        return newTime;
+      }
+      
+      return newTime;
+    });
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [isPlaying, user?.email, isLimitReached]);
 
   const formatTime = (time: number) => {
     if (isNaN(time)) return "0:00";
@@ -90,47 +110,64 @@ export default function WatchPage() {
 
   // FIXED: Bulletproof gestures that prevent AbortError
   const handleGestures = (e: React.MouseEvent) => {
-    const videoElement = videoRef.current;
-    if (!videoElement || isLimitReached) return;
+  const videoElement = videoRef.current;
+  if (!videoElement || isLimitReached) return;
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const width = rect.width;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const width = rect.width;
 
-    if (clickTimeoutRef.current) {
-      clearTimeout(clickTimeoutRef.current);
-      clickTimeoutRef.current = null;
-    }
+  if (clickTimeoutRef.current) {
+    clearTimeout(clickTimeoutRef.current);
+    clickTimeoutRef.current = null;
+  }
 
-    if (e.detail === 1) {
-      clickTimeoutRef.current = setTimeout(() => {
-        if (videoElement.paused) {
-          videoElement.play().then(() => setIsPlaying(true)).catch(() => {});
-        } else {
-          videoElement.pause();
-          setIsPlaying(false);
-        }
-      }, 250); 
-    } 
-    else if (e.detail === 2) {
-      setGesturePulse(x > width / 2 ? "+10s" : "-10s");
-      setTimeout(() => setGesturePulse(null), 500);
-      if (x > width / 2) videoElement.currentTime += 10;
-      else videoElement.currentTime -= 10;
-      videoElement.play().then(() => setIsPlaying(true)).catch(() => {});
-    }
-    else if (e.detail === 3) {
-      if (x > width * 0.7) {
-        window.close();
-      } else if (x < width * 0.3) {
-        document.getElementById('comment-box')?.scrollIntoView({ behavior: 'smooth' });
+  // --- SINGLE TAP: PAUSE/RESUME ---
+  if (e.detail === 1) {
+    clickTimeoutRef.current = setTimeout(() => {
+      if (videoElement.paused) {
+        videoElement.play().then(() => setIsPlaying(true)).catch(() => {});
+        setGesturePulse("▶"); // Smooth Play Icon
       } else {
-        // Task 5: Skip to home/next
-        router.push('/home'); 
+        videoElement.pause();
+        setIsPlaying(false);
+        setGesturePulse("⏸"); // Smooth Pause Icon
       }
+      setTimeout(() => setGesturePulse(null), 600);
+    }, 250);
+  } 
+
+  // --- DOUBLE TAP: SEEK 10s ---
+  else if (e.detail === 2) {
+    const isRight = x > width / 2;
+    setGesturePulse(isRight ? " +10s" : " -10s");
+    
+    if (isRight) videoElement.currentTime += 10;
+    else videoElement.currentTime -= 10;
+
+    setTimeout(() => setGesturePulse(null), 600);
+  }
+
+  // --- TRIPLE TAP: ADVANCED CONTROLS ---
+  else if (e.detail === 3) {
+    if (x > width * 0.7) {
+      // 1. Right Side -> Close
+      setGesturePulse("Closing...");
+      setTimeout(() => window.close(), 500);
+    } 
+    else if (x < width * 0.3) {
+      // 2. Left Side -> Scroll to Comments
+      setGesturePulse("💬 Comments");
+      document.getElementById('comment-box')?.scrollIntoView({ behavior: 'smooth' });
+    } 
+    else {
+      // 3. Center -> Skip to Next (Home)
+      setGesturePulse("⏭ Next Video");
+      setTimeout(() => router.push('/home'), 500);
     }
-  }; // Fixed the closing braces here
-  
+    setTimeout(() => setGesturePulse(null), 800);
+  }
+};
 const handleDownload = async () => {
   // 1. Plan Restriction Check
   if (user?.plan === 'Free' && (user?.dailyDownloadCount || 0) >= 1) {
@@ -321,6 +358,16 @@ const handleDownload = async () => {
               />
               <button onClick={handlePostComment} className="bg-blue-600 text-white px-8 py-2 rounded-2xl font-black uppercase text-[10px] tracking-widest">Post</button>
            </div>
+           <style jsx global>{`
+  @keyframes gesture-pop {
+    0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+    50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+  }
+  .animate-gesture {
+    animation: gesture-pop 0.6s ease-out forwards;
+  }
+`}</style>
 <div className="space-y-8">
   {comments.map((c) => (
     <div key={c._id || Math.random()} className="flex gap-5 group animate-fadeIn">

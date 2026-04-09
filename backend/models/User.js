@@ -44,6 +44,7 @@ const userSchema = new mongoose.Schema({
 userSchema.pre('save', async function() {
   const today = new Date().setHours(0, 0, 0, 0);
   
+  
   // Use a fallback if lastDownloadDate is missing
   const lastDate = this.lastDownloadDate ? new Date(this.lastDownloadDate) : new Date();
   const lastDownload = lastDate.setHours(0, 0, 0, 0);
@@ -54,7 +55,5 @@ userSchema.pre('save', async function() {
   }
   // No next() call needed for async hooks
 });
-
-module.exports = mongoose.model('User', userSchema);
 
 module.exports = mongoose.model('User', userSchema);

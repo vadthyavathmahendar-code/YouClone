@@ -27,4 +27,19 @@ router.put('/upgrade-plan', async (req, res) => {
   }
 });
 
+// backend/routes/userRoutes.js
+router.post('/sync-watchtime', async (req, res) => {
+  const { email, watchTime } = req.body;
+  try {
+    const user = await User.findOneAndUpdate(
+      { email },
+      { totalWatchTime: watchTime },
+      { new: true }
+    );
+    res.json({ success: true, totalWatchTime: user.totalWatchTime });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

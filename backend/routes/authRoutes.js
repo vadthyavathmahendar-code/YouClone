@@ -93,33 +93,69 @@ router.post('/signup', async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
-// LOGIN: Trigger Regional Auth (Task 4)
+// // LOGIN: Trigger Regional Auth (Task 4)
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
 
+    // 1. Basic Auth Validation
     if (!user) return res.status(400).json({ error: "Node not found." });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ error: "Invalid passcode." });
 
+    // 2. Generate 6-Digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.otp = otp;
-    user.otpExpiry = new Date(Date.now() + 10 * 60000); 
+    user.otpExpiry = new Date(Date.now() + 10 * 60000); // 10 Min Expiry
     await user.save();
 
+    // 3. REGIONAL LOGIC GATE (Task 4)
     if (isSouthIndia(user.location)) {
+      // --- REGION A: SOUTH INDIA (Email OTP) ---
       await sendEmailOTP(user.email, otp);
-      return res.status(200).json({ requiresOTP: true, authType: "email", email: user.email });
+      return res.status(200).json({ 
+        requiresOTP: true, 
+        authType: "email", 
+        email: user.email 
+      });
+
     } else {
-      console.log(`📡 [SMS SIMULATION] Sending OTP ${otp} to ${user.phone}`);
-  // await sendMobileOTP(formattedPhone, otp); // Comment this out while Twilio is down
-  res.status(200).json({ message: "OTP sent to Mobile (Simulated)", authType: "mobile", email: user.email });
+      // --- REGION B: GLOBAL/OTHER (Real Mobile OTP) ---
+      
+      // Safety Check: Ensure phone exists
+      if (!user.phone) {
+        return res.status(400).json({ error: "Mobile number missing for SMS authentication." });
+      }
+
+      // Format for Twilio (E.164)
+      const formattedPhone = user.phone.startsWith('+') ? user.phone : `+91${user.phone}`;
+
+      try {
+        // 🔥 TRIGGER REAL SMS DISPATCH
+        await sendMobileOTP(formattedPhone, otp);
+        console.log(`🚀 Real SMS OTP dispatched to: ${formattedPhone}`);
+
+        return res.status(200).json({ 
+          requiresOTP: true, 
+          authType: "mobile", 
+          email: user.email,
+          mobile: formattedPhone 
+        });
+      } catch (twilioErr) {
+        console.error("💥 Twilio Dispatch Failure:", twilioErr.message);
+        
+        // Fallback for Trial Accounts: If the number isn't verified in Twilio dashboard
+        return res.status(500).json({ 
+          error: "SMS delivery failed. Check Twilio verified caller IDs.", 
+          details: twilioErr.message 
+        });
+      }
     }
   } catch (err) {
-    console.error("💥 Login Error:", err.message);
-    return res.status(500).json({ error: "Authentication node failure." });
+    console.error("💥 Authentication Node Failure:", err.message);
+    return res.status(500).json({ error: "System-level authentication failure." });
   }
 });
 
