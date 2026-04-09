@@ -93,6 +93,13 @@ router.get('/seed/run', async (req, res) => {
     thumbnailUrl: "https://images.pexels.com/photos/701855/pexels-photo-701855.jpeg?auto=compress&cs=tinysrgb&w=800",
     channelName: "Blender Foundation",
     views: 89030
+  },{
+    title: "Aditya Vikram",
+    description: "A man finds himself trapped in a mysterious world where he must confront his past and fight for his future.",
+        videoUrl: "http://localhost:5000/uploads/6.mp4",
+    thumbnailUrl: "https://images.pexels.com/photos/701855/pexels-photo-701855.jpeg?auto=compress&cs=tinysrgb&w=800",
+    channelName: "Mahi Films",
+    views: 89030
   }
 ];
 
