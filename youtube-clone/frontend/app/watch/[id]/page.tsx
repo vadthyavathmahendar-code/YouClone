@@ -214,33 +214,42 @@ const handleDownload = async () => {
   }
 };
 
-  const handlePostComment = async () => {
-    if (!commentInput.trim()) return;
-    try {
-      const res = await fetch('http://localhost:5000/api/comments', {
-        method: 'POST',
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          videoId: id,
-          text: commentInput,
-          user: user?.name || "Anonymous Node",
-          city: user?.location || "Unknown Sector",
-          likes: 0,
-          dislikes: 0
-        })
-      });
+const handlePostComment = async () => {
+  if (!commentInput.trim()) return;
 
-      const data = await res.json();
-      if (!res.ok) {
-        alert(`🚫 ${data.message}`); 
-        return;
-      }
+  // 🛡️ Guard Clause: Prevent "Anonymous" posts by ensuring user data exists
+  if (!user || !user.name) {
+    alert("User profile not synced. Please wait a moment or log in again.");
+    return;
+  }
 
-      setComments([data, ...comments]);
-      setCommentInput("");
-    } catch (err) { alert("Failed to post comment."); }
-  };
+  try {
+    const res = await fetch('http://localhost:5000/api/comments', {
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        videoId: id,
+        text: commentInput,
+        user: user.name,      // 🚀 Forces the real name
+        city: user.location,  // 🚀 Forces the real location
+        likes: 0,
+        dislikes: 0
+      })
+    });
 
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`🚫 ${data.message}`); 
+      return;
+    }
+
+    setComments([data, ...comments]);
+    setCommentInput("");
+  } catch (err) { 
+    console.error("Comment Post Error:", err);
+    alert("Failed to post comment."); 
+  }
+};
   const handleVote = async (commentId: string, action: 'like' | 'dislike') => {
     try {
       const res = await fetch(`http://localhost:5000/api/comments/${commentId}/vote`, {

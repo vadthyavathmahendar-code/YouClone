@@ -2,25 +2,32 @@
 import { useEffect, useRef, useState } from "react";
 import { 
   Video, Mic, MicOff, MonitorUp, StopCircle, PhoneOff, 
-  VideoOff, Circle, Download, Copy, UserPlus, Radio, 
-  Activity, Shield, ChevronLeft 
+  Circle, Download, Copy, UserPlus, Radio, 
+  Activity, Shield, ChevronLeft, Settings, Users, 
+  Maximize2, Share2
 } from "lucide-react";
 import Link from "next/link";
 import io from "socket.io-client";
-import Peer from "simple-peer"; // 👈 Make sure to: npm install simple-peer
+import Peer from "simple-peer";
 
 // Polyfill for Simple-Peer in Next.js
 if (typeof window !== "undefined") {
   window.global = window.global || window;
 }
 
+// Ensure this matches your backend PORT
 const socket = io("http://localhost:5000");
 
 export default function CallPage() {
+  // --- REFS ---
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const connectionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
+  // --- STATE ---
+  const [user, setUser] = useState<any>(null);
   const [me, setMe] = useState("");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -30,34 +37,76 @@ export default function CallPage() {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
 
+  // --- 1. INITIALIZATION & ID GENERATION ---
   useEffect(() => {
-    socket.on("me", (id) => setMe(id));
+    // Sync Profile
+    const fetchProfile = async () => {
+      const email = localStorage.getItem("userEmail");
+      if (!email) return;
+      try {
+        const res = await fetch(`http://localhost:5000/api/auth/profile?email=${email}`);
+        const data = await res.json();
+        if (res.ok) setUser(data);
+      } catch (err) { console.error("Profile Error:", err); }
+    };
+    fetchProfile();
 
-    // 📡 Listener for incoming calls
-    socket.on("hey", ({ from, signal }) => {
+    // Instant ID Sync
+    if (socket.connected) setMe(socket.id);
+    const onMe = (id: string) => setMe(id);
+    const onConnect = () => setMe(socket.id);
+
+    socket.on("me", onMe);
+    socket.on("connect", onConnect);
+
+    return () => {
+      socket.off("me", onMe);
+      socket.off("connect", onConnect);
+    };
+  }, []);
+
+  // --- 2. SIGNALING LISTENERS ---
+  useEffect(() => {
+    if (!me) return;
+
+    socket.on("hey", ({ from, signal, name }) => {
+      if (connectionRef.current) return;
       setIsCalling(true);
-      startCall(false).then((currentStream) => {
+      
+      startCall().then((currentStream) => {
         const peer = new Peer({ initiator: false, trickle: false, stream: currentStream });
         
         peer.on("signal", (data) => {
           socket.emit("answerCall", { signal: data, to: from });
         });
 
-        peer.on("stream", (remoteStream) => {
-          if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-          setRemoteStream(remoteStream);
+        peer.on("stream", (remote) => {
+          setRemoteStream(remote);
+          if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remote;
         });
 
         peer.signal(signal);
         connectionRef.current = peer;
       });
     });
-  }, []);
 
-  const startCall = async (isInitiator = true) => {
+    socket.on("callAccepted", (signal) => {
+      // 🛡️ Signaling Guard: Prevents the "Stable" state crash
+      if (connectionRef.current && connectionRef.current._pc.signalingState !== "stable") {
+        connectionRef.current.signal(signal);
+      }
+    });
+
+    return () => {
+      socket.off("hey");
+      socket.off("callAccepted");
+    };
+  }, [me, user]);
+
+  // --- 3. CORE LOGIC FUNCTIONS ---
+
+  const startCall = async () => {
     try {
       const currentStream = await navigator.mediaDevices.getUserMedia({ 
         video: true, 
@@ -68,56 +117,51 @@ export default function CallPage() {
       setIsCalling(true);
       return currentStream;
     } catch (err) {
-      alert("Access Denied. Check browser permissions.");
+      alert("Please allow camera/mic access.");
       throw err;
     }
   };
 
-  // 📞 Function linked to the UserPlus (+) Button
-  const callUser = (id: string) => {
-    if (!stream) {
-      alert("Start your camera first!");
-      return;
-    }
-    
-    const peer = new Peer({ initiator: true, trickle: false, stream: stream });
+  const initiatePeer = (id: string, currentStream: MediaStream) => {
+    const peer = new Peer({ initiator: true, trickle: false, stream: currentStream });
 
     peer.on("signal", (data) => {
       socket.emit("callUser", { 
         userToCall: id, 
         signalData: data, 
-        from: me 
+        from: me, 
+        name: user?.name || "Studio Participant" 
       });
     });
 
-    peer.on("stream", (remoteStream) => {
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-      setRemoteStream(remoteStream);
-    });
-
-    socket.on("callAccepted", (signal) => {
-      peer.signal(signal);
+    peer.on("stream", (remote) => {
+      setRemoteStream(remote);
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remote;
     });
 
     connectionRef.current = peer;
   };
 
+  const callUser = (id: string) => {
+    if (!id.trim()) return alert("Enter a valid Node ID");
+    setIsCalling(true);
+    if (!stream) {
+      startCall().then((s) => initiatePeer(id, s));
+    } else {
+      initiatePeer(id, stream);
+    }
+  };
+
   const toggleScreenShare = async () => {
     if (!isScreenSharing) {
       try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
-          video: true, 
-          audio: true 
-        });
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
         
-        // Update the peer with the new screen tracks
         if (connectionRef.current) {
-          connectionRef.current.replaceTrack(
-            stream!.getVideoTracks()[0],
-            screenStream.getVideoTracks()[0],
-            stream!
-          );
+          const videoTrack = screenStream.getVideoTracks()[0];
+          const sender = connectionRef.current._pc.getSenders().find((s: any) => s.track.kind === "video");
+          if (sender) sender.replaceTrack(videoTrack);
         }
         
         setStream(screenStream);
@@ -126,9 +170,7 @@ export default function CallPage() {
           setIsScreenSharing(false);
           startCall();
         };
-      } catch (err) {
-        console.error("Screen share failed:", err);
-      }
+      } catch (err) { console.error(err); }
     } else {
       setIsScreenSharing(false);
       startCall();
@@ -138,7 +180,7 @@ export default function CallPage() {
   const startRecording = () => {
     if (!stream) return;
     chunksRef.current = [];
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus' });
+    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
@@ -150,108 +192,151 @@ export default function CallPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex overflow-hidden font-sans">
-      <aside className="w-20 flex flex-col items-center py-10 bg-[#111] border-r border-white/5 justify-between">
-         <div className="space-y-10">
-            <Link href="/home" className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center hover:bg-white/10 transition-all text-white/40 hover:text-white">
-              <ChevronLeft size={20} />
-            </Link>
-            <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-600/40">
-              <Radio size={20} className="animate-pulse" />
+    <div className="min-h-screen bg-[#050505] text-slate-200 flex flex-col font-sans">
+      {/* --- HEADER --- */}
+      <header className="h-16 border-b border-white/5 bg-black/40 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-50">
+        <div className="flex items-center gap-4">
+          <Link href="/home" className="p-2 hover:bg-white/5 rounded-full text-white/40 hover:text-white">
+            <ChevronLeft size={22} />
+          </Link>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center shadow-lg shadow-red-600/20">
+              <Radio size={16} className="text-white animate-pulse" />
             </div>
-         </div>
-      </aside>
+            <span className="font-bold tracking-tighter text-xl uppercase italic">Studio Node</span>
+          </div>
+        </div>
 
-      <main className="flex-1 flex flex-col p-8 overflow-y-auto">
-        <div className="max-w-6xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white/5 rounded-[2.5rem] p-6 border border-white/10 flex items-center gap-5">
-            <div className="w-14 h-14 bg-gradient-to-tr from-red-600 to-orange-500 rounded-full flex items-center justify-center font-black text-xl shadow-lg">ME</div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Node Active</p>
-              <div className="flex items-center gap-2">
-                <code className="text-sm font-mono text-green-400">{me || "GENERATING..."}</code>
-                <Copy size={14} className="opacity-40 hover:opacity-100 cursor-pointer" onClick={() => navigator.clipboard.writeText(me)} />
+        <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-1.5 rounded-full">
+          <div className={`w-2 h-2 rounded-full ${me ? 'bg-green-500 animate-ping' : 'bg-yellow-500'}`} />
+          <span className="text-[11px] font-mono text-green-500 uppercase tracking-widest leading-none">
+            {me ? `Node ID: ${me.substring(0, 14)}` : "Syncing..."}
+          </span>
+          <Copy size={14} className="cursor-pointer opacity-40 hover:opacity-100" onClick={() => navigator.clipboard.writeText(me)} />
+        </div>
+
+        <div className="flex items-center gap-4">
+          <button className="p-2 hover:bg-white/5 rounded-full"><Settings size={20} /></button>
+          <div className="w-9 h-9 bg-gradient-to-br from-red-500 to-orange-600 rounded-full border border-white/20 shadow-xl" />
+        </div>
+      </header>
+
+      <main className="flex-1 flex overflow-hidden p-4 gap-4">
+        {/* --- VIDEO AREA --- */}
+        <section className="flex-1 flex flex-col gap-4">
+          <div className="flex-1 bg-black rounded-3xl border border-white/5 overflow-hidden relative shadow-2xl">
+            {!isCalling ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-10">
+                <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/10">
+                  <Video size={40} className="text-white/20" />
+                </div>
+                <h1 className="text-3xl font-black mb-2 tracking-tight">Transmission Ready</h1>
+                <p className="text-white/40 max-w-sm mb-8 text-sm">Join the secure uplink. Your camera will activate upon node enabling.</p>
+                <button 
+                  onClick={() => { startCall(); setIsCalling(true); }}
+                  className="bg-red-600 hover:bg-red-700 text-white px-12 py-4 rounded-2xl font-bold uppercase text-xs tracking-widest shadow-2xl shadow-red-600/40 transition-all active:scale-95"
+                >
+                  Enable Node
+                </button>
               </div>
+            ) : (
+              <div className="w-full h-full relative">
+                <video 
+                  ref={remoteStream ? remoteVideoRef : localVideoRef} 
+                  autoPlay playsInline 
+                  onLoadedMetadata={(e) => e.currentTarget.play()}
+                  className="w-full h-full object-cover" 
+                />
+                <div className="absolute top-6 left-6 flex gap-2">
+                  <span className="bg-red-600 px-3 py-1 rounded text-[10px] font-bold uppercase tracking-widest">Live</span>
+                </div>
+                {remoteStream && (
+                  <div className="absolute top-6 right-6 w-56 aspect-video rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl">
+                    <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* --- CONTROLS --- */}
+            <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[#0a0a0a]/90 backdrop-blur-2xl px-6 py-4 rounded-3xl border border-white/10 transition-all ${isCalling ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+              <button onClick={() => setIsMuted(!isMuted)} className={`p-4 rounded-2xl ${isMuted ? 'bg-red-500 text-white' : 'bg-white/5'}`}>
+                {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
+              </button>
+              <button onClick={toggleScreenShare} className={`p-4 rounded-2xl ${isScreenSharing ? 'bg-blue-600' : 'bg-white/5'}`}>
+                <MonitorUp size={22} />
+              </button>
+              <div className="w-px h-8 bg-white/10 mx-2" />
+              {!isRecording ? (
+                <button onClick={startRecording} className="p-4 bg-white/5 rounded-2xl flex items-center gap-2">
+                  <Circle size={20} /><span className="text-[10px] font-bold uppercase tracking-widest">Rec</span>
+                </button>
+              ) : (
+                <button onClick={() => { mediaRecorderRef.current?.stop(); setIsRecording(false); }} className="p-4 bg-red-600/20 text-red-500 rounded-2xl animate-pulse flex items-center gap-2 border border-red-500/50">
+                  <StopCircle size={20} /><span className="text-[10px] font-bold uppercase tracking-widest tracking-tighter">Capturing</span>
+                </button>
+              )}
+              <button onClick={() => window.location.reload()} className="p-4 bg-red-600 text-white rounded-2xl shadow-lg">
+                <PhoneOff size={22} />
+              </button>
             </div>
           </div>
 
-          <div className="bg-white/5 rounded-[2.5rem] p-6 border border-white/10 flex items-center gap-4">
+          <div className="h-24 bg-white/5 border border-white/10 rounded-3xl px-8 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center"><Users size={24}/></div>
+              <div>
+                <h3 className="font-bold text-lg">{user?.name || "Global Participant"}</h3>
+                <p className="text-xs text-white/40 uppercase tracking-widest font-mono text-[10px]">E2E Encrypted Handshake</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button className="bg-white/5 p-3 rounded-xl"><Share2 size={18}/></button>
+              <button className="bg-white/5 p-3 rounded-xl"><Maximize2 size={18}/></button>
+            </div>
+          </div>
+        </section>
+
+        {/* --- SIDEBAR --- */}
+        <aside className="w-80 flex flex-col gap-4">
+          <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col gap-4">
+            <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Connect Node</span>
             <input 
-              placeholder="Enter Friend's ID" 
-              className="flex-1 bg-white text-black border-none px-6 py-4 rounded-2xl text-xs font-black outline-none transition-all placeholder:text-black/40 shadow-inner"
+              placeholder="Friend's Signal ID..." 
+              className="w-full bg-black border border-white/10 px-5 py-4 rounded-2xl text-xs font-mono outline-none"
               value={idToCall}
               onChange={(e) => setIdToCall(e.target.value)}
             />
-            {/* 🟢 FIXED: BUTTON NOW CALLS THE FUNCTION */}
             <button 
               onClick={() => callUser(idToCall)}
-              className="bg-white text-black p-4 rounded-2xl hover:bg-red-600 hover:text-white transition-all active:scale-95"
+              className="w-full bg-white text-black py-4 rounded-2xl font-bold uppercase text-[10px] tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95"
             >
-              <UserPlus size={20} />
+              <UserPlus size={16} className="inline mr-2" /> Establish Link
             </button>
           </div>
-        </div>
 
-        <div className="max-w-6xl w-full mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <div className="lg:col-span-3">
-             <div className="aspect-video bg-[#080808] rounded-[4rem] border border-white/10 overflow-hidden relative shadow-2xl group">
-                {!isCalling ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
-                     <Video size={48} className="opacity-10" />
-                     <p className="text-[10px] font-black uppercase tracking-[0.5em] opacity-20">Awaiting Signal</p>
-                     <button onClick={() => startCall()} className="mt-4 bg-red-600 px-10 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition-all shadow-xl shadow-red-600/20">
-                        Connect 
-                     </button>
-                  </div>
-                ) : (
-                  <>
-                    {/* Main Video (Shows Remote Stream if available, otherwise Local) */}
-                    <video ref={remoteStream ? remoteVideoRef : localVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                    
-                    {/* Small Picture-in-Picture for yourself when in a call */}
-                    {remoteStream && (
-                      <video ref={localVideoRef} autoPlay playsInline muted className="absolute top-8 right-8 w-48 aspect-video rounded-3xl border border-white/20 shadow-2xl object-cover scale-x-[-1]" />
-                    )}
-
-                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/80 backdrop-blur-3xl p-4 rounded-[2.5rem] border border-white/20">
-                       <button onClick={() => setIsMuted(!isMuted)} className={`p-4 rounded-2xl transition-all ${isMuted ? 'bg-red-500/20 text-red-500' : 'hover:bg-white/10'}`}>
-                         {isMuted ? <MicOff /> : <Mic />}
-                       </button>
-                       <button onClick={toggleScreenShare} className={`p-4 rounded-2xl transition-all ${isScreenSharing ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/40' : 'hover:bg-white/10'}`}>
-                         <MonitorUp />
-                       </button>
-                       <div className="w-px h-10 bg-white/10 mx-2" />
-                       {!isRecording ? (
-                         <button onClick={startRecording} className="p-4 hover:text-red-500"><Circle /></button>
-                       ) : (
-                         <button onClick={() => { mediaRecorderRef.current?.stop(); setIsRecording(false); }} className="p-4 bg-red-600 rounded-2xl animate-pulse"><StopCircle /></button>
-                       )}
-                       <button onClick={() => window.location.reload()} className="p-4 bg-red-600 rounded-2xl"><PhoneOff /></button>
-                    </div>
-                  </>
-                )}
-             </div>
-          </div>
-
-          <div className="lg:col-span-1 bg-white/5 rounded-[4rem] border border-white/10 p-8 flex flex-col items-center justify-center text-center">
-             {recordedUrl ? (
-                <div className="w-full space-y-6">
-                   <div className="aspect-square bg-black rounded-[3rem] border border-white/5 overflow-hidden shadow-inner">
-                      <video src={recordedUrl} autoPlay loop muted className="w-full h-full object-cover opacity-50" />
-                   </div>
-                   <button onClick={() => { const a = document.createElement("a"); a.href = recordedUrl; a.download=`VoIP_Rec.webm`; a.click(); }} 
-                     className="w-full py-5 bg-white text-black rounded-[2rem] font-black uppercase text-[10px] tracking-widest hover:bg-green-500 transition-all">
-                      Download Recording
-                   </button>
+          <div className="flex-1 bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-widest text-red-500 mb-4">Local Cache</span>
+            <div className="flex-1 border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center p-2">
+              {recordedUrl ? (
+                <div className="w-full h-full flex flex-col">
+                  <video src={recordedUrl} controls className="w-full rounded-2xl mb-4 bg-black aspect-video" />
+                  <button 
+                    onClick={() => { const a = document.createElement("a"); a.href = recordedUrl; a.download="Node_Capture.webm"; a.click(); }} 
+                    className="w-full py-4 bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-white/20 transition-all"
+                  >
+                    <Download size={14} className="inline mr-2" /> Download Cache
+                  </button>
                 </div>
-             ) : (
-                <div className="opacity-10">
-                   <Download size={48} className="mx-auto mb-4" />
-                   <p className="text-[10px] font-black uppercase tracking-widest leading-loose">No active<br/>session cache</p>
+              ) : (
+                <div className="text-center opacity-20">
+                  <Download size={24} className="mx-auto mb-2" />
+                  <p className="text-[10px] uppercase font-bold tracking-widest">No Cache</p>
                 </div>
-             )}
+              )}
+            </div>
           </div>
-        </div>
+        </aside>
       </main>
     </div>
   );

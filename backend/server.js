@@ -71,13 +71,15 @@ const io = new Server(server, {
   }
 });
 
+// --- 1. SOCKET.IO CONFIGURATION (Task 6) ---
 io.on("connection", (socket) => {
-  console.log("📡 User Connected to VoIP Node:", socket.id);
+  console.log("📡 User Connected:", socket.id);
   
-  // 🔥 This sends the ID to your "GENERATING..." box!
   socket.emit("me", socket.id);
 
+  // 🔴 FIX: This is the listener. It receives 'userToCall' from the frontend.
   socket.on("callUser", ({ userToCall, signalData, from, name }) => {
+    // The server just FORWARDS the data to 'userToCall'
     io.to(userToCall).emit("hey", { signal: signalData, from, name });
   });
 

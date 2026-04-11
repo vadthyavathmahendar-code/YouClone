@@ -11,6 +11,10 @@ const commentSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
+  user: { 
+    type: String, 
+    default: 'Anonymous Node' 
+  },
   city: { 
     type: String, 
     default: 'Unknown' 

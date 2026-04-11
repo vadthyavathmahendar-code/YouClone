@@ -14,9 +14,8 @@ const userSchema = new mongoose.Schema({
   },
   
   // Task 4: Location-Based Logic
-  location: { type: String, default: "Secunderabad" },
-  state: { type: String, default: "Telangana" }, // Added to match the South India check
-
+location: { type: String, default: "Global Node" }, // Or just default: ""
+state: { type: String, default: "Unknown" },
   // Task 2: Strict Download Limits
   dailyDownloadCount: { type: Number, default: 0 },
   lastDownloadDate: { 

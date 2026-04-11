@@ -48,14 +48,21 @@ const sendMobileOTP = async (toNumber, otp) => {
 
 // Task 4: Regional Logic Gate
 const southIndianStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
-const isSouthIndia = (location) => {
-  if (!location) return false;
-  const loc = location.toLowerCase();
-  return southIndianStates.some(state => loc.includes(state.toLowerCase())) || 
-         loc.includes('hyderabad') || 
-         loc.includes('secunderabad');
-};
 
+const isSouthIndia = (location) => {
+  // 1. If no location, or it's your new default fallback, it's NOT South India logic
+  if (!location || location === "Global Node" || location === "Unknown") return false;
+
+  const loc = location.toLowerCase();
+
+  // 2. Check if the string contains any South Indian state name
+  const matchesState = southIndianStates.some(state => loc.includes(state.toLowerCase()));
+
+  // 3. Check for specific city keywords (Hyderabad/Secunderabad)
+  const matchesCity = loc.includes('hyderabad') || loc.includes('secunderabad');
+
+  return matchesState || matchesCity;
+};
 // --- 2. AUTH ROUTES ---
 
 // 1. SIGNUP: Updated for stability
@@ -163,24 +170,41 @@ router.post('/login', async (req, res) => {
 router.post('/verify-otp', async (req, res) => {
   try {
     const { email, otp } = req.body;
-    const user = await User.findOne(
-      { email },
-      { name, location },
-      { new: true }
-    );
+    
+    // 1. Simple Find: Just find the user by email
+    const user = await User.findOne({ email });
 
-    if (!user || user.otp !== otp || user.otpExpiry < new Date()) {
+    if (!user) {
+      return res.status(400).json({ error: "Node not found." });
+    }
+
+    // Debugging Logs (You can see these in your terminal now)
+    console.log(`Input OTP: ${otp} | DB OTP: ${user.otp}`);
+
+    // 2. Validate OTP (Check value and expiry)
+    // We use .toString() to ensure we aren't comparing a Number to a String
+    if (user.otp?.toString() !== otp?.toString() || user.otpExpiry < new Date()) {
       return res.status(400).json({ error: "Invalid or expired OTP." });
     }
 
+    // 3. Clear OTP from DB after successful use
     user.otp = undefined;
     user.otpExpiry = undefined;
     await user.save();
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+    // 4. Issue JWT Token
+    const token = jwt.sign(
+      { id: user._id }, 
+      process.env.JWT_SECRET || 'secret', 
+      { expiresIn: '7d' }
+    );
+
+    console.log("✅ OTP Verified for:", email);
     return res.status(200).json({ message: "Authorized", token, user });
+
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error("💥 Verify OTP Error:", err.message);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
@@ -214,7 +238,7 @@ router.post('/update', async (req, res) => {
     const user = await User.findOneAndUpdate(
       { email },
       { name, location },
-      { new: true } 
+      { returnDocument: 'after' }
     ).select('-password');
     return res.json(user);
   } catch (err) {

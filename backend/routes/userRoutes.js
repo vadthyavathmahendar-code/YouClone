@@ -34,7 +34,7 @@ router.post('/sync-watchtime', async (req, res) => {
     const user = await User.findOneAndUpdate(
       { email },
       { totalWatchTime: watchTime },
-      { new: true }
+      { returnDocument: 'after' }
     );
     res.json({ success: true, totalWatchTime: user.totalWatchTime });
   } catch (err) {

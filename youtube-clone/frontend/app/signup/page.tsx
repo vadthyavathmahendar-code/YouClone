@@ -56,8 +56,8 @@ export default function SignupPage() {
           <div className="inline-flex p-4 rounded-3xl bg-red-600/10 border border-red-600/20 mb-6">
             <ShieldCheck className="text-red-600" size={32} />
           </div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter mb-2 italic">Join the Node</h2>
-          <p className="text-[10px] font-black uppercase opacity-40 tracking-[0.3em]">Authorized Personnel Only • Secunderabad v3.0</p>
+          <h2 className="text-4xl font-black uppercase tracking-tighter mb-2 italic">Create Account</h2>
+          <p className="text-[10px] font-black uppercase opacity-40 tracking-[0.3em]">Authorized Personnel Only </p>
         </div>
 
         <form onSubmit={handleSignup} className="space-y-4">
@@ -73,7 +73,7 @@ export default function SignupPage() {
           <div className="relative group">
             <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-red-600 transition-colors" size={18} />
             <input 
-              type="email" required placeholder="Email Address"
+              type="email" required placeholder="Email "
               className="w-full bg-black/40 border border-white/5 rounded-2xl pl-14 pr-6 py-4 focus:outline-none focus:border-red-600 focus:bg-black/60 transition-all font-medium text-sm"
               value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})}
             />
@@ -82,7 +82,7 @@ export default function SignupPage() {
           <div className="relative group">
             <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-red-600 transition-colors" size={18} />
             <input 
-              type="password" required placeholder="Secure Passcode"
+              type="password" required placeholder="Password"
               className="w-full bg-black/40 border border-white/5 rounded-2xl pl-14 pr-6 py-4 focus:outline-none focus:border-red-600 focus:bg-black/60 transition-all font-medium text-sm"
               value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})}
             />
@@ -118,7 +118,7 @@ export default function SignupPage() {
 
         <div className="mt-10 pt-8 border-t border-white/5 text-center">
           <p className="text-[10px] font-black uppercase tracking-widest opacity-30">
-            Already registered? <Link href="/login" className="text-white hover:text-red-600 transition-colors underline decoration-red-600/30 underline-offset-4 ml-1">Authenticate here</Link>
+            Already registered? <Link href="/login" className="text-white hover:text-red-600 transition-colors underline decoration-red-600/30 underline-offset-4 ml-1">Login here</Link>
           </p>
         </div>
       </div>
