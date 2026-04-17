@@ -16,7 +16,7 @@ function SearchResults() {
     const fetchResults = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`http://localhost:5000/api/videos/search/v?q=${encodeURIComponent(query)}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/videos/search/v?q=${encodeURIComponent(query)}`);
         if (res.ok) {
           const data = await res.json();
           setResults(data);

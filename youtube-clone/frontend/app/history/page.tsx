@@ -18,7 +18,7 @@ export default function HistoryPage() {
       }
 
       try {
-        const res = await fetch(`http://localhost:5000/api/history/${email}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/history/${email}`);
         if (res.ok) {
           setHistory(await res.json());
         }
@@ -37,7 +37,7 @@ export default function HistoryPage() {
     if (!confirm("Are you sure you want to clear your entire watch history?")) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/history/${email}`, { method: 'DELETE' });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/history/${email}`, { method: 'DELETE' });
       if (res.ok) {
         setHistory([]);
         alert("🗑️ Node history cleared.");

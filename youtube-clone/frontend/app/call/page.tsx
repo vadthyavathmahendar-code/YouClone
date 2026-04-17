@@ -16,7 +16,7 @@ if (typeof window !== "undefined") {
 }
 
 // Ensure this matches your backend PORT
-const socket = io("http://localhost:5000");
+const socket = io(process.env.NEXT_PUBLIC_API_URL || "${process.env.NEXT_PUBLIC_API_URL}");
 
 export default function CallPage() {
   // --- REFS ---
@@ -46,7 +46,7 @@ export default function CallPage() {
       const email = localStorage.getItem("userEmail");
       if (!email) return;
       try {
-        const res = await fetch(`http://localhost:5000/api/auth/profile?email=${email}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile?email=${email}`);
         const data = await res.json();
         if (res.ok) setUser(data);
       } catch (err) { console.error("Profile Error:", err); }

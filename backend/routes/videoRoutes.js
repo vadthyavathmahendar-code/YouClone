@@ -66,7 +66,7 @@ router.get('/seed/run', async (req, res) => {
   {
     title: "Big Buck Bunny - 720p",
     description: "Classic open-source animation. Stable for Task 7 downloads.",
-    videoUrl: "http://localhost:5000/uploads/1.mp4",
+    videoUrl: '${process.env.NEXT_PUBLIC_API_URL}/uploads/1.mp4',
     thumbnailUrl: "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg?auto=compress&cs=tinysrgb&w=800",
     channelName: "Blender Foundation",
     views: 15420
@@ -74,7 +74,7 @@ router.get('/seed/run', async (req, res) => {
   {
     title: "Cosmos Laundromat",
     description: "Another high-quality public domain video for testing gestures.",
-    videoUrl: "http://localhost:5000/uploads/2.mp4",
+    videoUrl: '${process.env.NEXT_PUBLIC_API_URL}/uploads/2.mp4',
     thumbnailUrl: "https://images.pexels.com/photos/1535162/pexels-photo-1535162.jpeg?auto=compress&cs=tinysrgb&w=800",
     channelName: "Blender Hub",
     views: 45000
@@ -82,21 +82,21 @@ router.get('/seed/run', async (req, res) => {
   {
     title: "Sintel - Open Movie",
     description: "A lonely young woman, Sintel, helps and befriends a dragon.",
-        videoUrl: "http://localhost:5000/uploads/3.mp4",
+        videoUrl: '${process.env.NEXT_PUBLIC_API_URL}/uploads/3.mp4',
     thumbnailUrl: "https://images.pexels.com/photos/701855/pexels-photo-701855.jpeg?auto=compress&cs=tinysrgb&w=800",
     channelName: "Blender Foundation",
     views: 89030
   },{
     title: "test video",
     description: "A lonely young woman, Sintel, helps and befriends a dragon.",
-        videoUrl: "http://localhost:5000/uploads/4.mp4",
+        videoUrl: '${process.env.NEXT_PUBLIC_API_URL}/uploads/4.mp4',
     thumbnailUrl: "https://images.pexels.com/photos/701855/pexels-photo-701855.jpeg?auto=compress&cs=tinysrgb&w=800",
     channelName: "Blender Foundation",
     views: 89030
   },{
     title: "Aditya Vikram",
     description: "A man finds himself trapped in a mysterious world where he must confront his past and fight for his future.",
-        videoUrl: "http://localhost:5000/uploads/6.mp4",
+        videoUrl: '${process.env.NEXT_PUBLIC_API_URL}/uploads/6.mp4',
     thumbnailUrl: "https://images.pexels.com/photos/701855/pexels-photo-701855.jpeg?auto=compress&cs=tinysrgb&w=800",
     channelName: "Mahi Films",
     views: 89030

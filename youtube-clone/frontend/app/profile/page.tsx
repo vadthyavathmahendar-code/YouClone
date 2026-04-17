@@ -31,7 +31,7 @@ export default function ProfilePage() {
       }
 
       try {
-        const res = await fetch(`http://localhost:5000/api/auth/profile?email=${email}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile?email=${email}`);
         const userData = await res.json();
         
         setUser(userData);
@@ -56,7 +56,7 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/update`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email, ...formData })
