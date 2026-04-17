@@ -2,16 +2,20 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const http = require('http'); // 🟢 ADD THIS
+const http = require('http'); 
 const { Server } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 
+// 🚀 THE PRODUCTION CORS FIX
+// This allows your backend to trust both localhost AND your live Vercel frontend
+const allowedOrigins = ['http://localhost:3000', process.env.FRONTEND_URL];
+
 // --- 1. CORS CONFIGURATION ---
 app.use(cors({
-  origin: 'http://localhost:3000', 
+  origin: allowedOrigins, 
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
@@ -21,10 +25,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // --- 3. STATIC FILE SERVICING ---
-// Task 7: Performance & Streaming
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
-  setHeaders: (res) => {
-    res.set('Access-Control-Allow-Origin', 'http://localhost:3000');
+  setHeaders: (res, path, stat) => {
+    // Dynamically allow the origin requesting the file
+    res.set('Access-Control-Allow-Origin', '*'); 
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     res.set('Cache-Control', 'public, max-age=31536000'); 
   }
@@ -48,38 +52,30 @@ app.get('/api/node-status', (req, res) => {
 });
 
 // --- 6. 🚨 THE "JSON PROTECTOR" (Global Error Handler) 🚨 ---
-// This prevents the "Unexpected token <" error by ensuring 
-// errors are sent as JSON, not HTML.
-// --- 6. 🚨 THE "JSON PROTECTOR" 🚨 ---
-// You MUST include 'next' in the arguments list even if you don't use it!
 app.use((err, req, res, next) => { 
   console.error("💥 Node Error Trace:", err.stack);
   
-  // This ensures your frontend gets a JSON object, not an HTML error page
   res.status(err.status || 500).json({ 
     message: "Internal Server Error", 
     error: err.message 
   });
 });
 
-// --- 1. SOCKET.IO CONFIGURATION (Task 6) ---
+// --- 7. SOCKET.IO CONFIGURATION (WebRTC Signaling) ---
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: allowedOrigins, // 🚀 Uses the same trusted URLs as Express
     methods: ['GET', 'POST'],
     credentials: true
   }
 });
 
-// --- 1. SOCKET.IO CONFIGURATION (Task 6) ---
 io.on("connection", (socket) => {
   console.log("📡 User Connected:", socket.id);
   
   socket.emit("me", socket.id);
 
-  // 🔴 FIX: This is the listener. It receives 'userToCall' from the frontend.
   socket.on("callUser", ({ userToCall, signalData, from, name }) => {
-    // The server just FORWARDS the data to 'userToCall'
     io.to(userToCall).emit("hey", { signal: signalData, from, name });
   });
 
@@ -92,18 +88,14 @@ io.on("connection", (socket) => {
   });
 });
 
-// ... Keep your existing CORS, Middleware, and Routes code here ...
-// (Make sure app.use('/api/auth', etc. is still here)
-
-// --- 7. DATABASE & SERVER START ---
+// --- 8. DATABASE & SERVER START ---
 const PORT = process.env.PORT || 5000;
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ Connected to MongoDB');
-    // 🔴 CRITICAL: Listen on 'server', NOT 'app'
     server.listen(PORT, () => {
-      console.log(`🚀 Node Active: http://localhost:${PORT}`);
+      console.log(`🚀 Node Active on Port: ${PORT}`);
     });
   })
   .catch((err) => {
