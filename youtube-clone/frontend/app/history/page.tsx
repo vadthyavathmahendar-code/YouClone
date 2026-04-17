@@ -95,14 +95,14 @@ export default function HistoryPage() {
         {/* RIGHT: Controls Menu */}
         <div className="w-full md:w-64 flex-shrink-0">
           <div className="bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-white/5 p-6 rounded-[2rem] sticky top-24">
-            <h3 className="font-black uppercase tracking-tighter mb-6 pb-4 border-b border-gray-200 dark:border-white/5">Log Controls</h3>
+            <h3 className="font-black uppercase tracking-tighter mb-6 pb-4 border-b border-gray-200 dark:border-white/5">History Controls</h3>
             
             <button 
               onClick={handleClearHistory}
               disabled={history.length === 0}
               className="w-full flex items-center gap-3 p-4 rounded-xl font-black text-xs uppercase tracking-widest text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-20 disabled:hover:bg-transparent"
             >
-              <Trash2 size={16} /> Clear All Logs
+              <Trash2 size={16} /> Clear History
             </button>
           </div>
         </div>

@@ -2,16 +2,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  Home, 
-  Zap, 
-  PlaySquare, 
-  UserCircle, 
-  History, 
-  ShoppingBag, 
-  Music2, 
-  Film, 
-  Gamepad2,
-  ListVideo
+  Home, Zap, PlaySquare, UserCircle, 
+  History, ShoppingBag, Music2, Film, 
+  Gamepad2, ListVideo
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -28,8 +21,8 @@ export default function Sidebar() {
     {
       label: "You",
       items: [
-        { icon: <UserCircle size={22} />, label: "Your channel", href: "/profile" }, // Point to Profile
-        { icon: <History size={22} />, label: "History", href: "/history" },       // Point to History
+        { icon: <UserCircle size={22} />, label: "Your channel", href: "/profile" },
+        { icon: <History size={22} />, label: "History", href: "/history" },
         { icon: <ListVideo size={22} />, label: "Playlists", href: "/library" },
       ]
     },
@@ -45,13 +38,13 @@ export default function Sidebar() {
   ];
 
 return (
-  <aside className="w-[240px] hidden lg:flex flex-col h-[calc(100vh-56px)] sticky top-14 overflow-y-auto no-scrollbar 
-                    bg-white dark:bg-[#0f0f0f] border-r border-gray-100 dark:border-white/5 transition-colors duration-500">
+  <aside className="w-[240px] hidden lg:flex flex-col h-[calc(100vh-64px)] sticky top0 overflow-y-auto no-scrollbar 
+                    bg-white dark:bg-[#050505] border-r border-gray-200 dark:border-white/5 transition-colors duration-700">
     <div className="p-3">
       {sections.map((section, sIdx) => (
-        <div key={sIdx} className={sIdx !== 0 ? "mt-4 pt-4 border-t border-gray-100 dark:border-white/5" : ""}>
+        <div key={sIdx} className={sIdx !== 0 ? "mt-4 pt-4 border-t border-gray-200 dark:border-white/10 transition-colors duration-700" : ""}>
           {section.label && (
-            <h3 className="px-3 py-2 text-[12px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest opacity-60">
+            <h3 className="px-3 py-2 text-[12px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest opacity-80">
               {section.label}
             </h3>
           )}
@@ -63,11 +56,11 @@ return (
                 href={item.href} 
                 className={`flex items-center px-4 py-3 rounded-xl mb-1 transition-all group
                   ${isActive 
-                    ? 'bg-gray-100 dark:bg-[#272727] font-bold' 
-                    : 'hover:bg-gray-50 dark:hover:bg-[#272727]'}`}
+                    ? 'bg-red-50 dark:bg-white/10 font-bold' 
+                    : 'hover:bg-gray-100 dark:hover:bg-white/5'}`}
               >
                 <span className={`mr-5 flex items-center justify-center transition-colors
-                  ${isActive ? 'text-red-600' : 'text-gray-600 dark:text-gray-400 group-hover:text-black dark:group-hover:text-white'}`}>
+                  ${isActive ? 'text-red-600' : 'text-gray-500 dark:text-gray-400 group-hover:text-black dark:group-hover:text-white'}`}>
                   {item.icon}
                 </span>
                 
@@ -83,7 +76,7 @@ return (
     </div>
     
     <div className="p-6 mt-auto">
-      <p className="text-[10px] opacity-40 dark:opacity-20 font-black uppercase leading-tight text-gray-600 dark:text-white">
+      <p className="text-[10px] opacity-40 dark:opacity-30 font-black uppercase tracking-widest leading-relaxed text-gray-500 dark:text-white">
         © 2026 YouClone<br/>Secunderabad Node
       </p>
     </div>

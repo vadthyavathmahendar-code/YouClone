@@ -25,6 +25,7 @@ export default function CallPage() {
   const connectionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const screenStreamRef = useRef<MediaStream | null>(null);
 
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
@@ -117,8 +118,24 @@ export default function CallPage() {
       setIsCalling(true);
       return currentStream;
     } catch (err) {
-      alert("Please allow camera/mic access.");
-      throw err;
+      console.warn("Camera locked by another tab. Joining with a virtual blank stream.");
+      
+      // 🚀 THE FIX: Generate a fake "Black Screen" video track using Canvas
+      const canvas = document.createElement("canvas");
+      canvas.width = 640;
+      canvas.height = 480;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      
+      // Capture the canvas as a real video stream (at 1 frame per second to save CPU)
+      const blankStream = canvas.captureStream(1); 
+
+      setStream(blankStream);
+      setIsCalling(true);
+      return blankStream; 
     }
   };
 
@@ -152,44 +169,109 @@ export default function CallPage() {
     }
   };
 
-  const toggleScreenShare = async () => {
+const toggleScreenShare = async () => {
     if (!isScreenSharing) {
       try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
+        // 🚀 Ask for BOTH video and audio!
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+          video: true, 
+          audio: true 
+        });
         
-        if (connectionRef.current) {
-          const videoTrack = screenStream.getVideoTracks()[0];
-          const sender = connectionRef.current._pc.getSenders().find((s: any) => s.track.kind === "video");
-          if (sender) sender.replaceTrack(videoTrack);
+        screenStreamRef.current = screenStream; // Save for the recorder
+        
+        // Swap BOTH video and audio tracks being sent to the remote peer
+        if (connectionRef.current && stream) {
+          const screenVideo = screenStream.getVideoTracks()[0];
+          const screenAudio = screenStream.getAudioTracks()[0]; // Only exists if they check "Share Tab Audio"
+          
+          const senders = connectionRef.current._pc.getSenders();
+          const videoSender = senders.find((s: any) => s.track.kind === "video");
+          const audioSender = senders.find((s: any) => s.track.kind === "audio");
+
+          if (videoSender && screenVideo) videoSender.replaceTrack(screenVideo);
+          if (audioSender && screenAudio) audioSender.replaceTrack(screenAudio);
         }
         
-        setStream(screenStream);
         setIsScreenSharing(true);
+        
+        // Revert back to camera & mic when "Stop Sharing" is clicked on popup
         screenStream.getVideoTracks()[0].onended = () => {
+          if (connectionRef.current && stream) {
+            const cameraVideo = stream.getVideoTracks()[0];
+            const cameraAudio = stream.getAudioTracks()[0];
+            const senders = connectionRef.current._pc.getSenders();
+            
+            const videoSender = senders.find((s: any) => s.track.kind === "video");
+            const audioSender = senders.find((s: any) => s.track.kind === "audio");
+            
+            if (videoSender && cameraVideo) videoSender.replaceTrack(cameraVideo);
+            if (audioSender && cameraAudio) audioSender.replaceTrack(cameraAudio);
+          }
+          screenStreamRef.current = null;
           setIsScreenSharing(false);
-          startCall();
         };
-      } catch (err) { console.error(err); }
+      } catch (err) { 
+        console.error("Screen share failed:", err); 
+      }
     } else {
+      // Revert back to camera & mic when manual UI button is clicked
+      if (connectionRef.current && stream) {
+        const cameraVideo = stream.getVideoTracks()[0];
+        const cameraAudio = stream.getAudioTracks()[0];
+        const senders = connectionRef.current._pc.getSenders();
+        
+        const videoSender = senders.find((s: any) => s.track.kind === "video");
+        const audioSender = senders.find((s: any) => s.track.kind === "audio");
+        
+        if (videoSender && cameraVideo) videoSender.replaceTrack(cameraVideo);
+        if (audioSender && cameraAudio) audioSender.replaceTrack(cameraAudio);
+      }
+      screenStreamRef.current = null;
       setIsScreenSharing(false);
-      startCall();
     }
   };
 
   const startRecording = () => {
-    if (!stream) return;
+    // 🚀 SMART STREAM SELECTOR:
+    // 1. If sharing screen, record the screen share.
+    // 2. If in a call, record the friend's video.
+    // 3. Otherwise, record your own face.
+    let streamToRecord = stream;
+    if (isScreenSharing && screenStreamRef.current) {
+      streamToRecord = screenStreamRef.current;
+    } else if (remoteStream) {
+      streamToRecord = remoteStream;
+    }
+
+    if (!streamToRecord) return;
+
     chunksRef.current = [];
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    const recorder = new MediaRecorder(streamToRecord, { mimeType: 'video/webm' });
+    
+    recorder.ondataavailable = (e) => { 
+      if (e.data.size > 0) chunksRef.current.push(e.data); 
+    };
+    
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
       setRecordedUrl(URL.createObjectURL(blob));
     };
+
     recorder.start(1000);
     mediaRecorderRef.current = recorder;
     setIsRecording(true);
   };
+  
+  // 🚀 THE "BLACK SCREEN" FIX: Force video streams to attach after React renders
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+    if (stream && localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
+    }
+  }, [stream, remoteStream]);
 
   return (
     <div className="min-h-screen bg-[#050505] text-slate-200 flex flex-col font-sans">
@@ -223,6 +305,7 @@ export default function CallPage() {
 
       <main className="flex-1 flex overflow-hidden p-4 gap-4">
         {/* --- VIDEO AREA --- */}
+        {/* --- VIDEO AREA --- */}
         <section className="flex-1 flex flex-col gap-4">
           <div className="flex-1 bg-black rounded-3xl border border-white/5 overflow-hidden relative shadow-2xl">
             {!isCalling ? (
@@ -241,17 +324,37 @@ export default function CallPage() {
               </div>
             ) : (
               <div className="w-full h-full relative">
+                {/* --- 1. THE MAIN VIDEO --- */}
                 <video 
                   ref={remoteStream ? remoteVideoRef : localVideoRef} 
                   autoPlay playsInline 
                   onLoadedMetadata={(e) => e.currentTarget.play()}
                   className="w-full h-full object-cover" 
                 />
-                <div className="absolute top-6 left-6 flex gap-2">
-                  <span className="bg-red-600 px-3 py-1 rounded text-[10px] font-bold uppercase tracking-widest">Live</span>
+
+                {/* --- 2. THE SCREEN SHARE OVERLAY --- */}
+                {isScreenSharing && (
+                  <div className="absolute inset-0 bg-blue-900/90 backdrop-blur-md flex flex-col items-center justify-center z-10 rounded-3xl border-2 border-blue-500 shadow-[0_0_50px_rgba(59,130,246,0.3)]">
+                    <MonitorUp size={64} className="text-white mb-6 animate-pulse drop-shadow-lg" />
+                    <h2 className="text-3xl font-black text-white tracking-[0.2em] uppercase">Transmitting Display</h2>
+                    <p className="text-blue-200 mt-2 font-mono text-xs tracking-widest uppercase">The remote node is receiving your screen stream</p>
+                    <button 
+                      onClick={toggleScreenShare}
+                      className="mt-8 bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-white/20 transition-all active:scale-95 cursor-pointer z-50 pointer-events-auto"
+                    >
+                      Stop Sharing
+                    </button>
+                  </div>
+                )}
+                
+                {/* --- 3. THE "LIVE LINK" BADGE --- */}
+                <div className="absolute top-6 left-6 flex gap-2 z-20">
+                  <span className="bg-red-600 px-3 py-1 rounded text-[10px] font-bold uppercase tracking-widest shadow-lg">Live Link</span>
                 </div>
+
+                {/* --- 4. THE PICTURE-IN-PICTURE VIDEO --- */}
                 {remoteStream && (
-                  <div className="absolute top-6 right-6 w-56 aspect-video rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl">
+                  <div className="absolute top-6 right-6 w-56 aspect-video rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl z-20 bg-black">
                     <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
                   </div>
                 )}
@@ -259,7 +362,7 @@ export default function CallPage() {
             )}
 
             {/* --- CONTROLS --- */}
-            <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[#0a0a0a]/90 backdrop-blur-2xl px-6 py-4 rounded-3xl border border-white/10 transition-all ${isCalling ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[#0a0a0a]/90 backdrop-blur-2xl px-6 py-4 rounded-3xl border border-white/10 transition-all z-50 ${isCalling ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
               <button onClick={() => setIsMuted(!isMuted)} className={`p-4 rounded-2xl ${isMuted ? 'bg-red-500 text-white' : 'bg-white/5'}`}>
                 {isMuted ? <MicOff size={22} /> : <Mic size={22} />}
               </button>
@@ -296,7 +399,6 @@ export default function CallPage() {
             </div>
           </div>
         </section>
-
         {/* --- SIDEBAR --- */}
         <aside className="w-80 flex flex-col gap-4">
           <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col gap-4">
