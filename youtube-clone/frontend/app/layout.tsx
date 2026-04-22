@@ -26,7 +26,7 @@ export default function RootLayout({
         // Requirement: 10:00 AM to 12:00 PM
         const isMorningSlot = hours >= 10 && hours < 12;
 
-        const response = await fetch('http://ip-api.com/json/');
+        const response = await fetch('https://ipapi.co/json/');
         const data = await response.json();
         const southIndiaStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
         
