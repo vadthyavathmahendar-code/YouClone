@@ -194,7 +194,7 @@ const handleDownload = async () => {
 
     // 3. Backend Sync (Increments the count in your database)
     if (user?.email) {
-      await fetch('${process.env.NEXT_PUBLIC_API_URL}/api/auth/increment-download', {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/increment-download`, {
         method: 'POST',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: user.email })
@@ -224,7 +224,7 @@ const handlePostComment = async () => {
   }
 
   try {
-    const res = await fetch('${process.env.NEXT_PUBLIC_API_URL}/api/comments', {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/comments`, {
       method: 'POST',
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
