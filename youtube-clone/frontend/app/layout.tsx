@@ -30,7 +30,7 @@ export default function RootLayout({
         const data = await response.json();
         const southIndiaStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
         
-        const isSouthIndia = southIndiaStates.includes(data.regionName);
+        const isSouthIndia = southIndiaStates.includes(data.region);
         const shouldBeLight = isMorningSlot && isSouthIndia;
         const selectedTheme = shouldBeLight ? 'light' : 'dark';
 
