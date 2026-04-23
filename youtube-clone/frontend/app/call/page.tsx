@@ -55,9 +55,9 @@ export default function CallPage() {
     fetchProfile();
 
     // Instant ID Sync
-    if (socket.connected) setMe(socket.id);
+    if (socket.connected) setMe(socket.id || "");
     const onMe = (id: string) => setMe(id);
-    const onConnect = () => setMe(socket.id);
+    const onConnect = () => setMe(socket.id || "");
 
     socket.on("me", onMe);
     socket.on("connect", onConnect);
