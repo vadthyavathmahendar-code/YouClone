@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import io from "socket.io-client";
+// @ts-ignore
 import Peer from "simple-peer";
 
 // Polyfill for Simple-Peer in Next.js
@@ -46,7 +47,7 @@ export default function CallPage() {
       const email = localStorage.getItem("userEmail");
       if (!email) return;
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile?email=${email}`);
+        const res = await fetch(\${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile?email=${email});
         const data = await res.json();
         if (res.ok) setUser(data);
       } catch (err) { console.error("Profile Error:", err); }
