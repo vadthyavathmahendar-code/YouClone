@@ -59,7 +59,7 @@ export default function ProfilePage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user.email, ...formData })
+        body: JSON.stringify({ ...formData })
       });
 
       if (res.ok) {
