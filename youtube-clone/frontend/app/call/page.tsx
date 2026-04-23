@@ -17,7 +17,7 @@ if (typeof window !== "undefined") {
 }
 
 // Ensure this matches your backend PORT
-const socket = io(process.env.NEXT_PUBLIC_API_URL || "${process.env.NEXT_PUBLIC_API_URL}");
+const socket = io(process.env.NEXT_PUBLIC_API_URL || "");
 
 export default function CallPage() {
   // --- REFS ---
