@@ -45,7 +45,7 @@ useEffect(() => {
         }
 
         // Log to Watch History
-        await fetch('${process.env.NEXT_PUBLIC_API_URL}/api/history', {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/history`, {
           method: 'POST',
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, videoId: id })
@@ -70,7 +70,7 @@ useEffect(() => {
 
       // 🔥 HEARTBEAT SYNC: Save to database every 10 seconds
       if (newTime % 10 === 0) {
-        fetch('${process.env.NEXT_PUBLIC_API_URL}/api/users/sync-watchtime', {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/sync-watchtime`, {
           method: 'POST',
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: user.email, watchTime: newTime })
