@@ -62,47 +62,24 @@ router.get('/:id', async (req, res) => {
 // 4. SEED ROUTE (With explicit field verification)
 router.get('/seed/run', async (req, res) => {
   try {
-    const sampleVideos = [
+    // Replace the sampleVideos array in Section 4 with this:
+const sampleVideos = [
   {
-        title: "Big Buck Bunny",
-        description: "A large, lovable rabbit deals with three tiny bullies in this classic open-source film.",
-        videoUrl: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-        thumbnailUrl: "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg?auto=compress&cs=tinysrgb&w=800",
-        channelName: "Blender Foundation",
-        views: 125420
-      },
-      {
-        title: "Elephants Dream",
-        description: "The world's first open-movie project, showcasing a surreal mechanical world.",
-        videoUrl: "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-        thumbnailUrl: "https://images.pexels.com/photos/1535162/pexels-photo-1535162.jpeg?auto=compress&cs=tinysrgb&w=800",
-        channelName: "Orange Open Movie",
-        views: 85000
-      },
-      {
-        title: "For Bigger Blazes",
-        description: "High-energy cinematic shots for testing video rendering and buffer speeds.",
-        videoUrl: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-        thumbnailUrl: "https://images.pexels.com/photos/701855/pexels-photo-701855.jpeg?auto=compress&cs=tinysrgb&w=800",
-        channelName: "Google Cinema",
-        views: 99030
-      },
-      {
-        title: "Sintel - The Quest",
-        description: "A brave woman travels the world to find her lost dragon companion.",
-        videoUrl: "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-        thumbnailUrl: "https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=800",
-        channelName: "Blender Foundation",
-        views: 250000
-      },
-      {
-        title: "Tears of Steel",
-        description: "Science fiction short film featuring robots and high-end visual effects.",
-        videoUrl: "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-        thumbnailUrl: "https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=800",
-        channelName: "Mango Open Movie",
-        views: 310500
-      }
+    title: "Nature's Beauty",
+    description: "High-quality scenic shots for UI testing.",
+    videoUrl: "https://player.vimeo.com/external/370338532.sd.mp4?s=349942a69493541249b784a9e400030588661608&profile_id=139&oauth2_token_id=57447761",
+    thumbnailUrl: "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg?auto=compress&cs=tinysrgb&w=800",
+    channelName: "Nature Channel",
+    views: 12500
+  },
+  {
+    title: "Urban City Life",
+    description: "Testing playback with city traffic and lights.",
+    videoUrl: "https://player.vimeo.com/external/517090025.sd.mp4?s=f0224d0676451662d515a819b10624022830f3c5&profile_id=165&oauth2_token_id=57447761",
+    thumbnailUrl: "https://images.pexels.com/photos/1535162/pexels-photo-1535162.jpeg?auto=compress&cs=tinysrgb&w=800",
+    channelName: "City Vibes",
+    views: 45000
+  }
 ];
 
     console.log("🧹 Clearing Video Collection...");
