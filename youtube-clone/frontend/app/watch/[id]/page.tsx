@@ -302,10 +302,16 @@ const handlePostComment = async () => {
         
         <div ref={containerRef} className="relative aspect-video bg-black rounded-3xl overflow-hidden group shadow-2xl">
           <video 
-            ref={videoRef} src={video.videoUrl} 
-            className="w-full h-full pointer-events-none" 
-            onTimeUpdate={handleTimeUpdate} autoPlay 
-          />
+  ref={videoRef} 
+  src={video.videoUrl} 
+  className="w-full h-full" // Removed pointer-events-none so you can interact with it
+  onTimeUpdate={handleTimeUpdate} 
+  autoPlay 
+  controls // Add this so you can see the play/pause buttons
+  playsInline // Better for mobile browser support
+  crossOrigin="anonymous" // CRITICAL for playing videos from external URLs (Google CDN)
+  key={video.videoUrl} // Forces the player to refresh when the video changes
+/>
 
           {gesturePulse && (
     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40
