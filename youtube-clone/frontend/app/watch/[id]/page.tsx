@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from '@/config';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { ThumbsUp, ThumbsDown, Download, Play, Maximize, Languages, MapPin, Loader2 } from 'lucide-react';
@@ -28,13 +29,13 @@ useEffect(() => {
   const fetchData = async () => {
     const email = localStorage.getItem('userEmail');
     try {
-      const vRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/videos/${id}`);
+      const vRes = await fetch(`${API_URL}/api/videos/${id}`);
       const videoData = await vRes.json();
       setVideo(videoData);
       
       if (email) {
         // Fetch Profile - Includes totalWatchTime from DB
-        const uRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile?email=${email}`);
+        const uRes = await fetch(`${API_URL}/api/auth/profile?email=${email}`);
         const userData = await uRes.json();
         setUser(userData);
         localStorage.setItem('userPlan', userData.plan); 
@@ -45,14 +46,14 @@ useEffect(() => {
         }
 
         // Log to Watch History
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/history`, {
+        await fetch(`${API_URL}/api/history`, {
           method: 'POST',
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, videoId: id })
         });
       }
 
-      const cRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/comments/video/${id}`);
+      const cRes = await fetch(`${API_URL}/api/comments/video/${id}`);
       setComments(await cRes.json());
     } catch (err) { console.error("Node Sync failed", err); }
   };
@@ -70,7 +71,7 @@ useEffect(() => {
 
       // 🔥 HEARTBEAT SYNC: Save to database every 10 seconds
       if (newTime % 10 === 0) {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/sync-watchtime`, {
+        fetch(`${API_URL}/api/users/sync-watchtime`, {
           method: 'POST',
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: user.email, watchTime: newTime })
@@ -194,7 +195,7 @@ const handleDownload = async () => {
 
     // 3. Backend Sync (Increments the count in your database)
     if (user?.email) {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/increment-download`, {
+      await fetch(`${API_URL}/api/auth/increment-download`, {
         method: 'POST',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: user.email })
@@ -224,7 +225,7 @@ const handlePostComment = async () => {
   }
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/comments`, {
+    const res = await fetch(`${API_URL}/api/comments`, {
       method: 'POST',
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -252,7 +253,7 @@ const handlePostComment = async () => {
 };
   const handleVote = async (commentId: string, action: 'like' | 'dislike') => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/comments/${commentId}/vote`, {
+      const res = await fetch(`${API_URL}/api/comments/${commentId}/vote`, {
         method: 'PUT',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action })
@@ -277,7 +278,7 @@ const handlePostComment = async () => {
       return;
     }
 
-   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/comments/${commentId}/translate`, { 
+   const res = await fetch(`${API_URL}/api/comments/${commentId}/translate`, { 
   method: 'POST',
   headers: { "Content-Type": "application/json" }
 });

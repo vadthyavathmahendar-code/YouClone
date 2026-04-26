@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from '@/config';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, Zap, Crown, ShieldCheck, Star } from 'lucide-react';
@@ -43,7 +44,7 @@ export default function UpgradePage() {
 
     try {
       // 1. Create Order
-      const orderRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payments/create-order`, {
+      const orderRes = await fetch(`${API_URL}/api/payments/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: price })
@@ -61,7 +62,7 @@ export default function UpgradePage() {
         description: `Upgrading to ${planName} Plan`,
         order_id: order.id,
         handler: async (response: any) => {
-          const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payments/verify-payment`, {
+          const verifyRes = await fetch(`${API_URL}/api/payments/verify-payment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...response, email, newPlan: planName, price })

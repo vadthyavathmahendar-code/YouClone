@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from '@/config';
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -18,7 +19,7 @@ export default function HistoryPage() {
       }
 
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/history/${email}`);
+        const res = await fetch(`${API_URL}/api/history/${email}`);
         if (res.ok) {
           setHistory(await res.json());
         }
@@ -37,7 +38,7 @@ export default function HistoryPage() {
     if (!confirm("Are you sure you want to clear your entire watch history?")) return;
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/history/${email}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/api/history/${email}`, { method: 'DELETE' });
       if (res.ok) {
         setHistory([]);
         alert("🗑️ Node history cleared.");

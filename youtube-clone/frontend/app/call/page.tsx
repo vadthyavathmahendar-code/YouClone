@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from '@/config';
 import { useEffect, useRef, useState } from "react";
 import { 
   Video, Mic, MicOff, MonitorUp, StopCircle, PhoneOff, 
@@ -17,7 +18,7 @@ if (typeof window !== "undefined") {
 }
 
 // Ensure this matches your backend PORT
-const socket = io(process.env.NEXT_PUBLIC_API_URL || "");
+const socket = io(API_URL || "");
 
 export default function CallPage() {
   // --- REFS ---
@@ -47,7 +48,7 @@ export default function CallPage() {
       const email = localStorage.getItem("userEmail");
       if (!email) return;
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile?email=${email}`);
+        const res = await fetch(`${API_URL}/api/auth/profile?email=${email}`);
         const data = await res.json();
         if (res.ok) setUser(data);
       } catch (err) { console.error("Profile Error:", err); }

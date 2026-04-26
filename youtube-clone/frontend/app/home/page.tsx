@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from '@/config';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -23,11 +24,11 @@ export default function HomeDashboard() {
       }
 
       try {
-        const uRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile?email=${email}`);
+        const uRes = await fetch(`${API_URL}/api/auth/profile?email=${email}`);
         const userData = await uRes.json();
         setUser(userData);
 
-        const vRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/videos`);
+        const vRes = await fetch(`${API_URL}/api/videos`);
         const vData = await vRes.json();
         setVideos(vData);
       } catch (err) {
@@ -105,7 +106,7 @@ export default function HomeDashboard() {
                 {/* 🚀 FIX 4: Replaced harsh #272727 gray with elegant white/5 */}
                 <div className="relative aspect-video rounded-2xl overflow-hidden bg-gray-100 dark:bg-white/5 border border-transparent dark:border-white/5 transition-colors duration-700">
                   <img 
-                    src={v.thumbnailUrl || `${process.env.NEXT_PUBLIC_API_URL}/uploads/thumb_${v._id}.jpg`} 
+                    src={v.thumbnailUrl || `${API_URL}/uploads/thumb_${v._id}.jpg`} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                   />
                   <span className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded">10:24</span>

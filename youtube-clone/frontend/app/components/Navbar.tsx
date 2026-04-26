@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from '@/config';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -23,7 +24,7 @@ export default function Navbar() {
         if (cachedPlan) setUserPlan(cachedPlan);
         if (cachedName) setUserName(cachedName);
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile?email=${email}`);
+        const res = await fetch(`${API_URL}/api/auth/profile?email=${email}`);
         
         if (res.ok) {
           const data = await res.json();
