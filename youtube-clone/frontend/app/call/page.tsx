@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/config';
+import { API_URL } from '../config';
 import { useEffect, useRef, useState } from "react";
 import { 
   Video, Mic, MicOff, MonitorUp, StopCircle, PhoneOff, 

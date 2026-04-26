@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState, Suspense } from "react";
+import { API_URL } from '../config';
+import { useEffect, useState, Suspense } from "react";  
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Search as SearchIcon, Play, Loader2 } from "lucide-react";
