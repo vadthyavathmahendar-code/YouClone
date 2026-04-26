@@ -39,20 +39,23 @@ state: { type: String, default: "Unknown" },
 });
 
 // 🔥 MIDDLEWARE: Auto-reset download count if a new day has started
-// 🔥 UPDATED MIDDLEWARE: No 'next' argument to prevent crashes
-userSchema.pre('save', async function() {
-  const today = new Date().setHours(0, 0, 0, 0);
-  
-  
-  // Use a fallback if lastDownloadDate is missing
-  const lastDate = this.lastDownloadDate ? new Date(this.lastDownloadDate) : new Date();
-  const lastDownload = lastDate.setHours(0, 0, 0, 0);
+// --- UPDATED MIDDLEWARE: Using the stable next() callback ---
+userSchema.pre('save', function(next) {
+  try {
+    const today = new Date().setHours(0, 0, 0, 0);
+    const lastDate = this.lastDownloadDate ? new Date(this.lastDownloadDate) : new Date();
+    const lastDownload = lastDate.setHours(0, 0, 0, 0);
 
-  if (today > lastDownload) {
-    this.dailyDownloadCount = 0;
-    this.lastDownloadDate = new Date(); // Update the date to today
+    if (today > lastDownload) {
+      this.dailyDownloadCount = 0;
+      this.lastDownloadDate = new Date(); 
+    }
+    
+    // 🚀 CRITICAL: Always call next() to let the save proceed
+    next();
+  } catch (err) {
+    // If something fails here, pass the error to next() instead of crashing
+    next(err);
   }
-  // No next() call needed for async hooks
 });
-
 module.exports = mongoose.model('User', userSchema);
