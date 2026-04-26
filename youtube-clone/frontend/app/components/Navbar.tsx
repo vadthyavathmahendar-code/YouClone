@@ -105,7 +105,7 @@ useEffect(() => {
         
         {/* Profile Avatar: Task 4 */}
         <div 
-          onClick={() => router.push('/profile')}
+          onClick={() => router.replace('/profile')}
           className="w-9 h-9 bg-gradient-to-br from-red-600 to-purple-600 rounded-xl flex items-center justify-center font-black text-white text-sm ml-2 cursor-pointer shadow-lg hover:scale-110 transition-transform"
         >
           {getInitial(userName)}
