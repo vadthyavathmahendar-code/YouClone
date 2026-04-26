@@ -76,7 +76,7 @@ const sampleVideos = [
   {
     title: "Arctic Wildlife",
     description: "Testing playback with high-definition nature footage.",
-    videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4", // Fast sample link
+    videoUrl: "https://vjs.zencdn.net/v/oceans.mp4", // Fast sample link
     thumbnailUrl: "https://images.pexels.com/photos/1535162/pexels-photo-1535162.jpeg",
     channelName: "Nature Hub",
     views: 85000
@@ -84,7 +84,7 @@ const sampleVideos = [
   {
     title: "Production Demo",
     description: "Stable stream for internship final presentation.",
-    videoUrl: "https://media.w3.org/2010/05/sintel/trailer.mp4", // Reliable CDN
+    videoUrl: "https://vjs.zencdn.net/v/oceans.mp4", // Reliable CDN
     thumbnailUrl: "https://images.pexels.com/photos/701855/pexels-photo-701855.jpeg",
     channelName: "Vercel Node",
     views: 99030
