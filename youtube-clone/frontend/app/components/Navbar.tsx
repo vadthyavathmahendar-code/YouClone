@@ -18,7 +18,6 @@ useEffect(() => {
 
     // 🛑 SAFETY GUARD: Stop if no email exists or if it's the string "null"
     if (!email || email === "null" || email === "undefined") {
-      console.log("Navbar: No active session. Skipping profile sync.");
       return; 
     }
 
