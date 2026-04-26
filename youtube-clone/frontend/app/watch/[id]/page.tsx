@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from ../config';
+import { API_URL } from '../../config';  
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { ThumbsUp, ThumbsDown, Download, Play, Maximize, Languages, MapPin, Loader2 } from 'lucide-react';
