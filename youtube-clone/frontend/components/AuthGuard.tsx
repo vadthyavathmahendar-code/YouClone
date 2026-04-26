@@ -3,49 +3,45 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ShieldAlert, Loader2 } from "lucide-react";
 
-// Track if this is the first load of the application
-let appHasMounted = false;
-
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   
-  // Start with 'false' to ensure we verify before showing any protected content
+  // State to track if the current session is authorized
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
-  // List the exact URLs that DO NOT require a login
-  // Update this line in AuthGuard.tsx
-const publicPaths = ['/', '/login', '/signup', '/verify-otp'];
+  // URLs that are accessible without a full JWT session token
+  const publicPaths = ['/', '/login', '/signup', '/verify-otp'];
 
-useEffect(() => {
-  const token = localStorage.getItem('token');
-  const isPublicPage = publicPaths.includes(pathname);
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const isPublicPage = publicPaths.includes(pathname);
 
-  // 1. Handling Public Pages (Login/Signup/Verify)
-  if (isPublicPage) {
-    if (token && (pathname === '/login' || pathname === '/signup' || pathname === '/verify-otp')) {
-      // If already authorized, move them into the app
-      router.push('/home');
+    // 1. PUBLIC PATH LOGIC
+    if (isPublicPage) {
+      // If user is already logged in (has token), don't let them go back to login/signup/verify
+      if (token && (pathname === '/login' || pathname === '/signup' || pathname === '/verify-otp')) {
+        router.push('/home');
+        return;
+      }
+      setIsAuthorized(true);
       return;
     }
+
+    // 2. PROTECTED PATH LOGIC
+    if (!token) {
+      console.warn("🔐 Access Denied: No Token Found. Redirecting to Login Node.");
+      setIsAuthorized(false);
+      router.push('/login');
+      return;
+    }
+
+    // 3. AUTHORIZATION GRANTED
+    // If we reach here, the user has a token and is accessing a protected route
     setIsAuthorized(true);
-    return;
-  }
+  }, [pathname, router]);
 
-  // 2. Handling Protected Pages (Home/Profile/Watch/Call)
-  if (!token) {
-    console.warn("🔐 Access Denied: No Token Found.");
-    setIsAuthorized(false);
-    // Don't push immediately if we're already on a public page (sanity check)
-    if (!isPublicPage) router.push('/login');
-    return;
-  }
-
-  // 3. Authorized Access Granted
-  setIsAuthorized(true);
-}, [pathname, router]);
-
-  // LOADING STATE: Shown during the split-second verification
+  // STAGE 1: INITIAL LOADING (Prevents "flicker" while checking localStorage)
   if (isAuthorized === null) {
     return (
       <div className="h-screen w-full bg-[#050505] flex flex-col items-center justify-center text-white">
@@ -57,7 +53,8 @@ useEffect(() => {
     );
   }
 
-  // ACCESS DENIED STATE: Shown if they are not authorized for this path
+  // STAGE 2: ACCESS DENIED UI
+  // Only show this if the authorization check failed and they are on a protected route
   if (isAuthorized === false && !publicPaths.includes(pathname)) {
     return (
       <div className="h-screen w-full bg-[#050505] flex flex-col items-center justify-center text-white p-6 text-center">
@@ -68,7 +65,7 @@ useEffect(() => {
         </p>
         <button 
           onClick={() => router.push('/login')}
-          className="mt-8 bg-white text-black px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-red-600 hover:text-white transition-all"
+          className="mt-8 bg-white text-black px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
         >
           Return to Login
         </button>
@@ -76,5 +73,6 @@ useEffect(() => {
     );
   }
 
+  // STAGE 3: RENDER PROTECTED CONTENT
   return <>{children}</>;
 }
