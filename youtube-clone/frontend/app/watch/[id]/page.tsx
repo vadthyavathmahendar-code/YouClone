@@ -309,8 +309,9 @@ const handlePostComment = async () => {
   autoPlay 
   controls // Add this so you can see the play/pause buttons
   playsInline // Better for mobile browser support
+  muted
   crossOrigin="anonymous" // CRITICAL for playing videos from external URLs (Google CDN)
-  preload="auto"
+  preload="metadata" // Preload metadata to get duration info without downloading the whole video
   key={video.videoUrl} // Forces the player to refresh when the video changes
 />
 
