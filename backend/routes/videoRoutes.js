@@ -66,31 +66,31 @@ router.get('/seed/run', async (req, res) => {
 // Replace Section 4 sampleVideos with this:
 const sampleVideos = [
   {
-    title: "Big Buck Bunny",
+    title: "Ocean Waves",
     description: "High-speed direct stream for YouClone testing.",
-    videoUrl: "https://vjs.zencdn.net/v/oceans.mp4", // Extremely fast CDN link
+    videoUrl: "https://vjs.zencdn.net/v/oceans.mp4", 
     thumbnailUrl: "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg",
     channelName: "Blender Foundation",
     views: 125420
   },
   {
-    title: "Arctic Wildlife",
-    description: "Testing playback with high-definition nature footage.",
-    videoUrl: "https://vjs.zencdn.net/v/oceans.mp4", // Fast sample link
+    title: "Bunny Trailer",
+    description: "Stable trailer for testing playback.",
+    videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4", 
     thumbnailUrl: "https://images.pexels.com/photos/1535162/pexels-photo-1535162.jpeg",
     channelName: "Nature Hub",
     views: 85000
   },
   {
-    title: "Production Demo",
-    description: "Stable stream for internship final presentation.",
-    videoUrl: "https://vjs.zencdn.net/v/oceans.mp4", // Reliable CDN
+    title: "Sintel Project",
+    description: "Reliable CDN for final presentation.",
+    videoUrl: "https://media.w3.org/2010/05/sintel/trailer.mp4", 
     thumbnailUrl: "https://images.pexels.com/photos/701855/pexels-photo-701855.jpeg",
     channelName: "Vercel Node",
     views: 99030
   }
-];
-    console.log("🧹 Clearing Video Collection...");
+];  
+console.log("🧹 Clearing Video Collection...");
     await Video.deleteMany({}); 
     
     console.log("🌱 Inserting Sample Data...");
