@@ -105,7 +105,7 @@ router.post('/signup', async (req, res) => {
 
     // --- TASK 4: REGIONAL DISPATCH ---
     if (isSouthIndia(user.location)) {
-      await sendEmailOTP(user.email, otp);
+      sendEmailOTP(user.email, otp);
       return res.status(200).json({ 
         requiresOTP: true, 
         authType: "email", 
@@ -114,7 +114,7 @@ router.post('/signup', async (req, res) => {
     } else {
       // If phone exists, send SMS, otherwise fallback
       if (user.phone) {
-        await sendMobileOTP(user.phone, otp);
+        sendMobileOTP(user.phone, otp);
       }
       return res.status(200).json({ 
         requiresOTP: true, 
