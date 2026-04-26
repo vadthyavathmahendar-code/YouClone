@@ -65,20 +65,20 @@ router.get('/seed/run', async (req, res) => {
     // Replace the sampleVideos array in Section 4 with this:
 const sampleVideos = [
   {
-    title: "Nature's Retreat",
-    description: "A peaceful look at the wilderness. Perfect for testing YouClone streaming.",
-    videoUrl: "https://player.vimeo.com/external/370338532.sd.mp4?s=349942a69493541249b784a9e400030588661608&profile_id=139&oauth2_token_id=57447761",
-    thumbnailUrl: "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg?auto=compress&cs=tinysrgb&w=800",
-    channelName: "EcoWatch",
-    views: 12540
+    title: "Elephant's Dream",
+    description: "The first open-movie project, showcasing a surreal mechanical world.",
+    videoUrl: "https://archive.org/download/ElephantsDream/ed_1024_512kb.mp4",
+    thumbnailUrl: "https://images.pexels.com/photos/1535162/pexels-photo-1535162.jpeg",
+    channelName: "Orange Open Movie",
+    views: 85000
   },
   {
-    title: "Urban Architecture",
-    description: "Exploring modern building designs and cityscapes.",
-    videoUrl: "https://player.vimeo.com/external/517090025.sd.mp4?s=f0224d0676451662d515a819b10624022830f3c5&profile_id=165&oauth2_token_id=57447761",
-    thumbnailUrl: "https://images.pexels.com/photos/1535162/pexels-photo-1535162.jpeg?auto=compress&cs=tinysrgb&w=800",
-    channelName: "CityVibes",
-    views: 45000
+    title: "Big Buck Bunny",
+    description: "Classic animation for testing web players.",
+    videoUrl: "https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4",
+    thumbnailUrl: "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg",
+    channelName: "Blender Foundation",
+    views: 125420
   }
 ];
 

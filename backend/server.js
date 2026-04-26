@@ -15,9 +15,9 @@ const allowedOrigins = ['http://localhost:3000', process.env.FRONTEND_URL];
 
 // --- 1. CORS CONFIGURATION ---
 app.use(cors({
-  origin: allowedOrigins, 
+  origin: "*", // Temporarily allow all for testing to bypass CORS errors
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true
+  credentials: false // Set to false if using origin: "*"
 }));
 
 // --- 2. GLOBAL MIDDLEWARE ---

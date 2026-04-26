@@ -121,6 +121,12 @@ useEffect(() => {
     clearTimeout(clickTimeoutRef.current);
     clickTimeoutRef.current = null;
   }
+  
+useEffect(() => {
+  if (video && videoRef.current) {
+    videoRef.current.load(); // Forces the browser to look for the source again
+  }
+}, [video]);
 
   // --- SINGLE TAP: PAUSE/RESUME ---
   if (e.detail === 1) {
@@ -304,13 +310,12 @@ const handlePostComment = async () => {
           <video 
   ref={videoRef} 
   src={video.videoUrl} 
-  className="w-full h-full" // Removed pointer-events-none so you can interact with it
+  className="w-full h-full object-contain" 
   onTimeUpdate={handleTimeUpdate} 
   autoPlay 
-  controls // Add this so you can see the play/pause buttons
-  playsInline // Better for mobile browser support
-  crossOrigin="anonymous" // CRITICAL for playing videos from external URLs (Google CDN)
-  key={video.videoUrl} // Forces the player to refresh when the video changes
+  controls 
+  playsInline 
+  key={video.videoUrl}
 />
 
           {gesturePulse && (
@@ -321,8 +326,9 @@ const handlePostComment = async () => {
     </div>
   )}
 
-          <div className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer" onClick={handleGestures}>
-            {!isPlaying && !isLimitReached && <div className="bg-black/50 p-6 rounded-full"><Play size={48} fill="white" /></div>}
+
+<div className="absolute inset-0 z-0 flex items-center justify-center cursor-pointer" onClick={handleGestures}>
+  {!isPlaying && !isLimitReached && <div className="bg-black/50 p-6 rounded-full"><Play size={48} fill="white" /></div>}
             
             {isLimitReached && (
               <div className="absolute inset-0 bg-black/95 backdrop-blur-xl z-30 flex flex-col items-center justify-center p-8 text-center">
