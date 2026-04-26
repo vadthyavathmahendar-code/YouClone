@@ -14,7 +14,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   // List the exact URLs that DO NOT require a login
-  const publicPaths = ['/', '/login', '/signup'];
+  // Update this line in AuthGuard.tsx
+const publicPaths = ['/', '/login', '/signup', '/verify-otp'];
 
   useEffect(() => {
     const token = localStorage.getItem('token');
