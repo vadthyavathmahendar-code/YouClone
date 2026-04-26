@@ -303,6 +303,7 @@ const handlePostComment = async () => {
         <div ref={containerRef} className="relative aspect-video bg-black rounded-3xl overflow-hidden group shadow-2xl">
           <video 
   ref={videoRef} 
+  key={video?._id}
   src={video.videoUrl} 
   className="w-full h-full" // Removed pointer-events-none so you can interact with it
   onTimeUpdate={handleTimeUpdate} 
@@ -312,7 +313,6 @@ const handlePostComment = async () => {
   muted
   crossOrigin="anonymous" // CRITICAL for playing videos from external URLs (Google CDN)
   preload="metadata" // Preload metadata to get duration info without downloading the whole video
-  key={video.videoUrl} // Forces the player to refresh when the video changes
 />
 
           {gesturePulse && (
