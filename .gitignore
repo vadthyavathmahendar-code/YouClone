@@ -1,7 +1,6 @@
 node_modules/
 backend/node_modules/
 youtube-clone/frontend/node_modules/
-.env
 .next/
 dist/
 build/
