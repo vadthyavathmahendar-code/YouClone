@@ -12,39 +12,41 @@ export default function Navbar() {
   const [userPlan, setUserPlan] = useState('Free');
   const [userName, setUserName] = useState('U');
 
-  useEffect(() => {
-    const syncUserProfile = async () => {
-      try {
-        const email = localStorage.getItem("userEmail");
-        if (!email) return;
+useEffect(() => {
+  const syncUserProfile = async () => {
+    const email = localStorage.getItem("userEmail");
 
-        // Immediately set UI from local cache while we wait for fresh data
-        const cachedPlan = localStorage.getItem("userPlan");
-        const cachedName = localStorage.getItem("userName");
-        if (cachedPlan) setUserPlan(cachedPlan);
-        if (cachedName) setUserName(cachedName);
+    // 🛑 SAFETY GUARD: Stop if no email exists or if it's the string "null"
+    if (!email || email === "null" || email === "undefined") {
+      console.log("Navbar: No active session. Skipping profile sync.");
+      return; 
+    }
 
-        const res = await fetch(`${API_URL}/api/auth/profile?email=${email}`);
-        
-        if (res.ok) {
-          const data = await res.json();
-          // 🔥 Sync Storage + State with fresh DB data
-          localStorage.setItem("userPlan", data.plan);
-          localStorage.setItem("userName", data.name);
-          localStorage.setItem("userLocation", data.location);
-          
-          setUserPlan(data.plan);
-          setUserName(data.name);
-        } else {
-          console.warn("Node Sync: Backend unreachable, using cached data.");
-        }
-      } catch (err) {
-        console.error("Navbar Sync Error:", err);
+    try {
+      // Load cached data immediately for zero-lag UI
+      const cachedPlan = localStorage.getItem("userPlan");
+      const cachedName = localStorage.getItem("userName");
+      if (cachedPlan) setUserPlan(cachedPlan);
+      if (cachedName) setUserName(cachedName);
+
+      const res = await fetch(`${API_URL}/api/auth/profile?email=${email}`);
+      
+      if (res.ok) {
+        const data = await res.json();
+        // Sync everything
+        localStorage.setItem("userPlan", data.plan);
+        localStorage.setItem("userName", data.name);
+        setUserPlan(data.plan);
+        setUserName(data.name);
       }
-    };
+    } catch (err) {
+      console.error("Navbar Sync Error:", err);
+    }
+  };
 
-    syncUserProfile();
-  }, []);
+  syncUserProfile();
+}, []);
+
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

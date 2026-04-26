@@ -17,33 +17,46 @@ export default function SignupPage() {
   });
 
   const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/api/auth/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+  e.preventDefault();
+  setLoading(true);
 
-      const data = await res.json();
+  try {
+    const res = await fetch(`${API_URL}/api/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    });
 
-      if (res.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("userEmail", data.user.email);
-        localStorage.setItem("userPlan", data.user.plan || 'Free');
-        localStorage.setItem("userName", data.user.name);
-        router.push("/home");
-      } else {
-        alert(data.error || "Signup failed");
-      }
-    } catch (err) {
-      console.error("Connection Refused:", err);
-      alert("System Error: Ensure Backend is running on Port 5000.");
-    } finally {
-      setLoading(false);
+    // 1. Check if the response is actually JSON to avoid the "<" error
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const errorText = await res.text();
+      console.error("Backend Error (Non-JSON):", errorText);
+      throw new Error("Server returned HTML instead of JSON. Check backend logs.");
     }
-  };
+
+    const data = await res.json();
+
+    if (res.ok) {
+      // --- TASK 4: REGIONAL AUTH LOGIC ---
+      // Instead of going to /home, we save the email and move to OTP verification
+      localStorage.setItem("pendingEmail", formData.email);
+      localStorage.setItem("userLocation", formData.location);
+
+      alert("🚀 Region detected: South India. Please verify the OTP sent to your email.");
+      
+      // Redirect to the OTP page you need to create
+      router.push("/verify-otp"); 
+    } else {
+      alert(data.message || data.error || "Signup failed");
+    }
+  } catch (err: any) {
+    console.error("Signup Error Trace:", err);
+    alert(`❌ Connection Issue: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4 md:p-10 text-white selection:bg-red-600">

@@ -18,38 +18,40 @@ export default function RootLayout({
   const isSpecialPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname.startsWith('/call');
 
   // ✅ SAFE THEME LOGIC
-  useEffect(() => {
-    const applyRegionalTheme = async () => {
-      try {
-        const now = new Date();
-        const hours = now.getHours();
-        // Requirement: 10:00 AM to 12:00 PM
-        const isMorningSlot = hours >= 10 && hours < 12;
+useEffect(() => {
+  const applyRegionalTheme = async () => {
+    try {
+      const now = new Date();
+      const hours = now.getHours();
+      // Requirement: 10:00 AM to 12:00 PM
+      const isMorningSlot = hours >= 10 && hours < 12;
 
-        const response = await fetch('https://ipapi.co/json/');
-        const data = await response.json();
-        const southIndiaStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
-        
-        const isSouthIndia = southIndiaStates.includes(data.region);
-        const shouldBeLight = isMorningSlot && isSouthIndia;
-        const selectedTheme = shouldBeLight ? 'light' : 'dark';
+      // Use a faster fallback for location
+      const response = await fetch('https://ipapi.co/json/').catch(() => null);
+      const data = response ? await response.json() : { region: 'Telangana' }; // Fallback to your home region
+      
+      const southIndiaStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
+      const isSouthIndia = southIndiaStates.includes(data.region);
+      
+      // Determine theme
+      const shouldBeLight = isMorningSlot && isSouthIndia;
+      const selectedTheme = shouldBeLight ? 'light' : 'dark';
 
-        setTheme(selectedTheme);
-        
-        // 🚀 CRITICAL FIX: Cleanly swap the Tailwind classes on the HTML root
-        const root = document.documentElement;
-        root.classList.remove('light', 'dark');
-        root.classList.add(selectedTheme);
-        root.style.colorScheme = selectedTheme;
-        
-      } catch (error) {
-        // Default to Dark on error
-        setTheme('dark');
-        document.documentElement.classList.add('dark');
-      }
-    };
-    applyRegionalTheme();
-  }, []);
+      setTheme(selectedTheme);
+      
+      const root = document.documentElement;
+      root.classList.remove('light', 'dark');
+      root.classList.add(selectedTheme);
+      root.style.colorScheme = selectedTheme;
+      
+    } catch (error) {
+      setTheme('dark');
+      document.documentElement.classList.add('dark');
+    }
+  };
+  applyRegionalTheme();
+}, []);
+
 
   return (
     <html lang="en">
