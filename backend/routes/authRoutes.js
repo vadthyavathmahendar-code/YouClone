@@ -75,31 +75,49 @@ router.post('/signup', async (req, res) => {
     if (existingUser) return res.status(400).json({ error: "Node already exists." });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // Create instance first
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
     const user = new User({
       name: name || "Secunderabad Node",
       email,
       password: hashedPassword,
       location: location || "Secunderabad",
       phone: phone || "",
+      otp: otp, // Save OTP for verification
+      otpExpiry: new Date(Date.now() + 10 * 60000), 
       plan: "Free",
       dailyDownloadCount: 0,
       lastDownloadDate: new Date()
     });
 
-    // This triggers the pre('save') hook we just fixed
     await user.save();
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
-    console.log("✅ Node Registered Successfully:", email);
-    return res.status(200).json({ message: "Signup successful", token, user });
+    // --- TASK 4: REGIONAL DISPATCH ---
+    if (isSouthIndia(user.location)) {
+      await sendEmailOTP(user.email, otp);
+      return res.status(200).json({ 
+        requiresOTP: true, 
+        authType: "email", 
+        message: "OTP sent to your email." 
+      });
+    } else {
+      // If phone exists, send SMS, otherwise fallback
+      if (user.phone) {
+        await sendMobileOTP(user.phone, otp);
+      }
+      return res.status(200).json({ 
+        requiresOTP: true, 
+        authType: "mobile", 
+        message: "OTP sent to your mobile." 
+      });
+    }
 
   } catch (err) {
     console.error("💥 Signup Crash Error:", err.message);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Internal Server Error during registration." });
   }
 });
+
 // // LOGIN: Trigger Regional Auth (Task 4)
 router.post('/login', async (req, res) => {
   try {
