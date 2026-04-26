@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/config';
+import { API_URL } from '../config';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, Zap, Crown, ShieldCheck, Star } from 'lucide-react';

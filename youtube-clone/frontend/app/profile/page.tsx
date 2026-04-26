@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/config'; 
+import { API_URL } from ../config'; 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
