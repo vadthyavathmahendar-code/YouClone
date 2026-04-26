@@ -11,39 +11,50 @@ require('dotenv').config();
 
 // Task 4: Email OTP for South India
 const sendEmailOTP = async (toEmail, otp) => {
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS, // MUST be the 16-character App Password
+      },
+    });
 
-  const mailOptions = {
-    from: `"YouClone Security Node" <${process.env.EMAIL_USER}>`,
-    to: toEmail,
-    subject: 'Your YouClone Access Code',
-    html: `
-      <div style="font-family: Arial, sans-serif; background-color: #0f0f0f; color: white; padding: 40px; text-align: center; border-radius: 10px;">
-        <h2 style="color: #dc2626; text-transform: uppercase; letter-spacing: 2px;">Node Access Authorization</h2>
-        <div style="font-size: 32px; font-weight: bold; letter-spacing: 10px; background-color: #111; padding: 20px; border: 1px solid #333; display: inline-block; margin: 20px 0; border-radius: 10px;">
-          ${otp}
+    const mailOptions = {
+      from: `"YouClone Security Node" <${process.env.EMAIL_USER}>`,
+      to: toEmail,
+      subject: 'Your YouClone Access Code',
+      html: `
+        <div style="background-color: #0f0f0f; color: white; padding: 40px; text-align: center;">
+          <h2 style="color: #dc2626;">Node Access Authorization</h2>
+          <div style="font-size: 32px; background-color: #111; padding: 20px; display: inline-block;">
+            ${otp}
+          </div>
         </div>
-        <p style="opacity: 0.5; font-size: 12px; text-transform: uppercase;">This code expires in 10 minutes.</p>
-      </div>
-    `
-  };
-  await transporter.sendMail(mailOptions);
+      `
+    };
+    await transporter.sendMail(mailOptions);
+    console.log(`📧 OTP Email successfully dispatched to ${toEmail}`);
+  } catch (error) {
+    // 🛑 LOG the error but DON'T crash the server
+    console.error("💥 Nodemailer Failure (Handled):", error.message);
+  }
 };
 
 // Task 4: SMS OTP for other regions
 const sendMobileOTP = async (toNumber, otp) => {
-  const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-  await client.messages.create({
-    body: `[YouClone Node] Your secure access code is: ${otp}`,
-    from: process.env.TWILIO_PHONE_NUMBER,
-    to: toNumber 
-  });
+  try {
+    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    await client.messages.create({
+      body: `[YouClone Node] Your secure access code is: ${otp}`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: toNumber 
+    });
+    console.log(`🚀 SMS OTP successfully dispatched to ${toNumber}`);
+  } catch (error) {
+    // 🛑 THIS STOPS THE 500 ERROR: Log the Twilio failure but continue
+    console.error("💥 Twilio Dispatch Failure (Handled):", error.message);
+  }
 };
 
 // Task 4: Regional Logic Gate
