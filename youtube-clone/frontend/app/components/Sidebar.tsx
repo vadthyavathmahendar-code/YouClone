@@ -54,6 +54,7 @@ return (
               <Link 
                 key={item.label} 
                 href={item.href} 
+                prefetch={false}
                 className={`flex items-center px-4 py-3 rounded-xl mb-1 transition-all group
                   ${isActive 
                     ? 'bg-red-50 dark:bg-white/10 font-bold' 

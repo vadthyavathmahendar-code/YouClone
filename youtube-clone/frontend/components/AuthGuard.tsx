@@ -17,43 +17,33 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   // Update this line in AuthGuard.tsx
 const publicPaths = ['/', '/login', '/signup', '/verify-otp'];
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const isPublicPage = publicPaths.includes(pathname);
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  const isPublicPage = publicPaths.includes(pathname);
 
-    // 1. PUBLIC PAGE ACCESS
-    if (isPublicPage) {
-      // If user is already logged in and tries to go to login/signup, send them home
-      if (token && (pathname === '/login' || pathname === '/signup')) {
-        router.push('/home');
-        return;
-      }
-      setIsAuthorized(true);
+  // 1. Handling Public Pages (Login/Signup/Verify)
+  if (isPublicPage) {
+    if (token && (pathname === '/login' || pathname === '/signup' || pathname === '/verify-otp')) {
+      // If already authorized, move them into the app
+      router.push('/home');
       return;
     }
-
-    // 2. PROTECTED PAGE ACCESS
-    if (!token) {
-      console.warn("🔐 No Token Found. Redirecting to Login Node.");
-      setIsAuthorized(false);
-      router.push('/login');
-      return;
-    }
-
-    // 3. NAVIGATIONAL INTEGRITY (Anti-Tampering)
-    // If they HAVE a token but are trying to hit a deep link directly on hard refresh
-    if (!appHasMounted) {
-      appHasMounted = true; 
-      
-      // If it's a deep link (not home) on a fresh mount, verify extra carefully
-      if (pathname !== '/home' && !pathname.startsWith('/watch')) {
-        console.log("📍 Validating deep link access...");
-      }
-    }
-
-    // 4. GRANT ACCESS
     setIsAuthorized(true);
-  }, [pathname, router]);
+    return;
+  }
+
+  // 2. Handling Protected Pages (Home/Profile/Watch/Call)
+  if (!token) {
+    console.warn("🔐 Access Denied: No Token Found.");
+    setIsAuthorized(false);
+    // Don't push immediately if we're already on a public page (sanity check)
+    if (!isPublicPage) router.push('/login');
+    return;
+  }
+
+  // 3. Authorized Access Granted
+  setIsAuthorized(true);
+}, [pathname, router]);
 
   // LOADING STATE: Shown during the split-second verification
   if (isAuthorized === null) {

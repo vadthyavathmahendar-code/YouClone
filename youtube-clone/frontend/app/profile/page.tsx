@@ -21,39 +21,47 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('home');
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      const email = localStorage.getItem('userEmail');
-      const token = localStorage.getItem('token');
+useEffect(() => {
+  const fetchProfile = async () => {
+    const email = localStorage.getItem('userEmail');
+    const token = localStorage.getItem('token');
 
-      if (!token || !email) {
-        router.push('/login');
-        return;
-      }
+    // 🛑 GUARD: Redirect if no session exists
+    if (!token || !email || email === "null") {
+      router.push('/login');
+      return;
+    }
 
-      try {
-        const res = await fetch(`${API_URL}/api/auth/profile?email=${email}`);
-        const userData = await res.json();
-        
-        setUser(userData);
-        setFormData({ 
-          name: userData.name || 'User Node', 
-          handle: userData.handle || userData.name?.toLowerCase().replace(/\s+/g, '') || '',
-          description: userData.description || '',
-          location: userData.location || 'Secunderabad',
-          email: userData.email || email
-        });
+    try {
+      const res = await fetch(`${API_URL}/api/auth/profile?email=${email}`);
+      if (!res.ok) throw new Error("Profile node unreachable");
 
-        localStorage.setItem('userPlan', userData.plan);
-      } catch (err) {
-        console.error("Profile Load Error:", err);
-      } finally {
-        setTimeout(() => setLoading(false), 500);
-      }
-    };
+      const userData = await res.json();
+      setUser(userData);
+      
+      // Task 4: Sync local storage with fresh DB data
+      localStorage.setItem('userPlan', userData.plan);
+      localStorage.setItem('userLocation', userData.location);
 
-    fetchProfile();
-  }, [router]);
+      setFormData({ 
+        name: userData.name || 'User Node', 
+        handle: userData.handle || userData.email.split('@')[0],
+        description: userData.description || '',
+        location: userData.location || 'Secunderabad',
+        email: userData.email
+      });
+    } catch (err) {
+      console.error("Profile Load Error:", err);
+      // Fallback: If DB is down, use whatever is in localStorage
+      setUser({ name: localStorage.getItem('userName'), plan: localStorage.getItem('userPlan') });
+    } finally {
+      // 🚀 CRITICAL: Ensure loading is set to false immediately
+      setLoading(false);
+    }
+  };
+
+  fetchProfile();
+}, [router]);
 
   const handleSave = async () => {
     try {
