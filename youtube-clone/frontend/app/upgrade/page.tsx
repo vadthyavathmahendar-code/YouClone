@@ -105,7 +105,7 @@ export default function UpgradePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white py-20 px-6 flex flex-col items-center justify-center font-sans">
+    <div className="min-h-screen bg-white dark:bg-[#050505] text-gray-900 dark:text-white py-20 px-6 flex flex-col items-center justify-center font-sans">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-red-600/10 blur-[120px] rounded-full -z-10"></div>
       
       <div className="text-center mb-16">
@@ -120,7 +120,7 @@ export default function UpgradePage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
         {plans.map((p) => (
           <div key={p.name} className={`relative group p-[1px] rounded-[2.5rem] transition-all duration-500 hover:scale-[1.02] ${p.popular ? 'bg-gradient-to-b from-yellow-400 to-transparent scale-105' : 'bg-white/10 hover:bg-white/20'}`}>
-            <div className="bg-[#0f0f0f] rounded-[2.5rem] p-10 h-full flex flex-col items-center">
+            <div className="bg-white dark:bg-[#0f0f0f] rounded-[2.5rem] p-10 h-full flex flex-col items-center text-gray-900 dark:text-white">
               {p.popular && (
                 <span className="absolute -top-4 bg-yellow-500 text-black px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl">
                   Most Popular

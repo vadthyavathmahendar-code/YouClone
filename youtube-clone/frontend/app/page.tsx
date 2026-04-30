@@ -18,10 +18,10 @@ export default function LandingPage() {
     }
   }, [router]);
 
-  if (isChecking) return <div className="h-screen bg-[#050505]" />;
+  if (isChecking) return <div className="h-screen bg-white dark:bg-[#050505]" />;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-6 selection:bg-red-600">
+    <div className="min-h-screen bg-white dark:bg-[#050505] text-gray-900 dark:text-white flex flex-col items-center justify-center p-6 selection:bg-red-600">
       <div className="max-w-3xl text-center space-y-8">
         <div className="w-24 h-24 bg-red-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-red-600/20">
           <Video size={48} fill="white" />

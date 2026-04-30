@@ -48,7 +48,7 @@ export default function HistoryPage() {
     }
   };
 
-  if (loading) return <div className="h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-red-600"/></div>;
+  if (loading) return <div className="h-screen bg-white dark:bg-[#050505] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-red-600"/></div>;
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-white dark:bg-[#050505] text-black dark:text-white p-6 md:p-12 transition-colors">

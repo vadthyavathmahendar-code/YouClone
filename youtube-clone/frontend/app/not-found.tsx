@@ -3,7 +3,7 @@ import { Hammer, ArrowLeft, Construction } from 'lucide-react';
 
 export default function NotFound() {
   return (
-    <div className="min-h-[calc(100vh-56px)] bg-[#050505] text-white flex flex-col items-center justify-center p-6 selection:bg-red-600">
+    <div className="min-h-[calc(100vh-56px)] bg-white dark:bg-[#050505] text-gray-900 dark:text-white flex flex-col items-center justify-center p-6 selection:bg-red-600">
       
       <div className="relative flex flex-col items-center text-center animate-fadeIn">
         
@@ -11,7 +11,7 @@ export default function NotFound() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-orange-600/10 blur-[80px] rounded-full pointer-events-none" />
 
         {/* Icon */}
-        <div className="w-20 h-20 bg-[#111] border border-white/5 rounded-[2rem] flex items-center justify-center mb-8 shadow-2xl relative z-10">
+        <div className="w-20 h-20 bg-gray-100 dark:bg-[#111] border border-gray-200 dark:border-white/5 rounded-[2rem] flex items-center justify-center mb-8 shadow-2xl relative z-10">
           <Hammer className="text-orange-500 animate-pulse" size={40} />
         </div>
 

@@ -322,7 +322,7 @@ const handlePostComment = async () => {
   };
 
 
-  if (!video) return <div className="h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-red-600"/></div>;
+  if (!video) return <div className="h-screen bg-white dark:bg-[#050505] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-red-600"/></div>;
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-4 lg:px-20 bg-white dark:bg-[#0f0f0f] min-h-screen text-black dark:text-white transition-colors duration-300">
