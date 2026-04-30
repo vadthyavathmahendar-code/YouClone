@@ -41,34 +41,10 @@ const sendEmailOTP = async (toEmail, otp) => {
   }
 };
 
-// Task 4: SMS OTP for other regions
+// Task 4: SMS OTP — disabled (Twilio credentials invalid, using email only)
 const sendMobileOTP = async (toNumber, otp) => {
-  try {
-    // Validate Twilio credentials exist
-    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
-      console.warn("⚠️ Twilio credentials missing - SMS OTP disabled");
-      return false;
-    }
-
-    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-    await client.messages.create({
-      body: `[YouClone Node] Your secure access code is: ${otp}`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: toNumber 
-    });
-    console.log(`🚀 SMS OTP successfully dispatched to ${toNumber}`);
-    return true;
-  } catch (error) {
-    // 🛑 THIS STOPS THE 500 ERROR: Log the Twilio failure but continue
-    console.error("💥 Twilio Dispatch Failure (Handled):", error.message);
-    
-    // Log specific Twilio error codes for debugging
-    if (error.code) {
-      console.error(`   Twilio Error Code: ${error.code}`);
-    }
-    
-    return false;
-  }
+  console.warn("⚠️ SMS OTP disabled - using email OTP instead");
+  return false;
 };
 
 // Task 4: Regional Logic Gate

@@ -152,7 +152,7 @@ export default function HomeDashboard() {
                     </h3>
                     <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 truncate">{v.channelName}</p>
                     <p className="text-xs text-gray-400 dark:text-gray-600">
-                      {Math.floor(Math.random() * 900 + 100)}K views · {v.createdAt ? 'Recently' : '2 days ago'}
+                      {v.views ? `${v.views} views` : 'New'} · {v.createdAt ? new Date(v.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : 'Recently'}
                     </p>
                   </div>
                 </div>

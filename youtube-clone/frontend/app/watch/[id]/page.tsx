@@ -131,7 +131,6 @@ useEffect(() => {
 
       const isLeft   = tapX < width * 0.33;
       const isRight  = tapX > width * 0.66;
-      const isCenter = !isLeft && !isRight;
 
       if (taps === 1) {
         // Single tap anywhere — pause/resume
