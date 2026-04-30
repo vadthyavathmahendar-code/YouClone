@@ -26,15 +26,31 @@ useEffect(() => {
     const email = localStorage.getItem('userEmail');
     const token = localStorage.getItem('token');
 
+    console.log("🔍 Profile Page - Email:", email, "Token:", token ? "exists" : "missing");
+
     // 🛑 GUARD: Redirect if no session exists
-    if (!token || !email || email === "null") {
+    if (!token || !email || email === "null" || email === "undefined") {
+      console.warn("⚠️ No valid session, redirecting to login");
       router.push('/login');
       return;
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/auth/profile?email=${email}`);
-      if (!res.ok) throw new Error("Profile node unreachable");
+      const res = await fetch(`${API_URL}/api/auth/profile?email=${encodeURIComponent(email)}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Profile fetch failed:", res.status, errorData);
+        
+        // If 404, user doesn't exist - redirect to signup
+        if (res.status === 404) {
+          console.warn("⚠️ User not found, redirecting to signup");
+          localStorage.clear();
+          router.push('/signup');
+          return;
+        }
+        
+        throw new Error(errorData.error || "Profile node unreachable");
+      }
 
       const userData = await res.json();
       setUser(userData);
@@ -206,21 +222,43 @@ body: JSON.stringify({ email: user.email, ...formData })
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-black mb-6 flex items-center gap-2">Recent Offline Downloads <Download size={20} className="text-gray-400 dark:text-[#aaaaaa]" /></h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                    <div className="flex flex-col gap-3 group cursor-pointer">
-                      <div className="relative aspect-video bg-gray-200 dark:bg-[#111] rounded-2xl overflow-hidden border border-transparent dark:border-white/5 transition-colors duration-700">
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/20 dark:bg-black/40 backdrop-blur-sm transition-all duration-300">
-                          <PlayCircle size={40} className="text-white drop-shadow-lg scale-90 group-hover:scale-100 transition-transform" />
-                        </div>
-                        <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded-md font-bold tracking-widest uppercase">Local</div>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-sm line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Sample Output Buffer</h4>
-                        <p className="text-xs text-gray-500 dark:text-[#aaaaaa] mt-1 transition-colors duration-700">Ready for playback • 142 MB</p>
-                      </div>
+                  <h3 className="text-xl font-black mb-6 flex items-center gap-2">Recent Downloads <Download size={20} className="text-gray-400 dark:text-[#aaaaaa]" /></h3>
+                  {!user?.downloads?.length ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-dashed border-gray-200 dark:border-white/5 rounded-3xl">
+                      <Download size={32} className="text-gray-300 dark:text-[#333] mb-3" />
+                      <p className="text-sm text-gray-400 dark:text-[#555] font-bold">No downloads yet</p>
+                      <Link href="/home" className="text-blue-500 text-xs mt-2 hover:underline font-bold">Browse videos →</Link>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                      {user.downloads.slice(0, 4).map((dl: any, i: number) => (
+                        <Link href={`/watch/${dl.videoId}`} key={i} className="flex flex-col gap-3 group cursor-pointer">
+                          <div className="relative aspect-video bg-gray-200 dark:bg-[#111] rounded-2xl overflow-hidden border border-transparent dark:border-white/5">
+                            {dl.thumbnail ? (
+                              <img src={dl.thumbnail} alt={dl.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <PlayCircle size={32} className="text-gray-400 dark:text-[#555]" />
+                              </div>
+                            )}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 backdrop-blur-sm transition-all duration-300">
+                              <PlayCircle size={40} className="text-white drop-shadow-lg" />
+                            </div>
+                            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-2 py-1 rounded-md font-bold uppercase">Downloaded</div>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{dl.title}</h4>
+                            <p className="text-xs text-gray-500 dark:text-[#aaaaaa] mt-1">{new Date(dl.downloadedAt).toLocaleDateString()}</p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  {user?.downloads?.length > 4 && (
+                    <button onClick={() => setActiveTab('offline')} className="mt-4 text-sm text-blue-500 hover:underline font-bold">
+                      View all {user.downloads.length} downloads →
+                    </button>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -322,10 +360,62 @@ body: JSON.stringify({ email: user.email, ...formData })
             )}
 
             {activeTab === 'offline' && (
-              <motion.div key="offline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 transition-colors duration-700">
-                <Download size={48} className="text-gray-400 dark:text-[#aaaaaa] mb-4" />
-                <h3 className="text-xl font-black mb-2 text-black dark:text-white">Your Offline Library</h3>
-                <p className="text-sm text-gray-500 dark:text-[#aaaaaa] font-medium">Videos downloaded will appear in your system's native downloads folder.</p>
+              <motion.div key="offline" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-black flex items-center gap-2">
+                    <Download size={20} className="text-red-500" /> Downloads
+                    <span className="text-xs font-bold bg-gray-100 dark:bg-white/10 px-2 py-1 rounded-full ml-1">
+                      {user?.downloads?.length || 0}
+                    </span>
+                  </h3>
+                  <div className="text-xs text-gray-500 dark:text-[#aaaaaa] font-bold">
+                    {user?.plan === 'Free'
+                      ? `${user?.dailyDownloadCount || 0}/1 today · `
+                      : user?.plan === 'Silver'
+                      ? `${user?.dailyDownloadCount || 0}/5 today · `
+                      : `${user?.dailyDownloadCount || 0} today · `}
+                    <Link href="/upgrade" className="text-blue-500 hover:underline">
+                      {user?.plan === 'Gold' ? 'Gold Plan ✓' : 'Upgrade for more'}
+                    </Link>
+                  </div>
+                </div>
+
+                {!user?.downloads?.length ? (
+                  <div className="flex flex-col items-center justify-center py-24 text-center">
+                    <Download size={48} className="text-gray-300 dark:text-[#333] mb-4" />
+                    <h4 className="text-lg font-black text-gray-400 dark:text-[#555] mb-2">No downloads yet</h4>
+                    <p className="text-sm text-gray-400 dark:text-[#555] mb-6">Videos you download will appear here.</p>
+                    <Link href="/home" className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-full font-bold text-sm transition-colors">
+                      Browse Videos
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                    {user.downloads.map((dl: any, i: number) => (
+                      <Link href={`/watch/${dl.videoId}`} key={i} className="flex flex-col gap-3 group cursor-pointer">
+                        <div className="relative aspect-video bg-gray-200 dark:bg-[#111] rounded-2xl overflow-hidden border border-transparent dark:border-white/5">
+                          {dl.thumbnail ? (
+                            <img src={dl.thumbnail} alt={dl.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <PlayCircle size={32} className="text-gray-400 dark:text-[#555]" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 backdrop-blur-sm transition-all duration-300">
+                            <PlayCircle size={40} className="text-white drop-shadow-lg" />
+                          </div>
+                          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-2 py-1 rounded-md font-bold uppercase">Downloaded</div>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{dl.title}</h4>
+                          <p className="text-xs text-gray-500 dark:text-[#aaaaaa] mt-1">
+                            {new Date(dl.downloadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </motion.div>
             )}
 

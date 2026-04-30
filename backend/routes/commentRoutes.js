@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const Comment = require('../models/Comment');
-const { translate } = require('@vitalets/google-translate-api');
 
 // 1. POST: Save a new comment (WITH TASK 1 INCLUSIVE BLOCKING)
 router.post('/', async (req, res) => {
@@ -68,36 +67,44 @@ router.put('/:id/vote', async (req, res) => {
     res.status(500).json({ message: "Failed to process vote" });
   }
 });
-// 4. POST: ACTUAL AI TRANSLATION (TASK 1 INCLUSIVITY)
+// 4. POST: TRANSLATION using Google Translate (gtx client - no rate limit)
 router.post('/:id/translate', async (req, res) => {
-  // Define comment outside the try block so the catch block can see it
-  let comment; 
-  
+  let comment;
   try {
     comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    // 🔥 REAL AI TRANSLATION logic
-    const result = await translate(comment.text, { to: 'en' });
+    const targetLang = req.body.targetLang || 'en';
+    const text = comment.text;
 
-    // Safety check: Ensure the translation engine returned the expected data
-    const sourceLang = result?.from?.language?.iso || "unknown";
+    // Use gtx client endpoint — reliable, no rate limiting
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`;
 
-    console.log(`🌍 Translated from ${sourceLang}: ${result.text}`);
-
-    res.status(200).json({ 
-      translatedText: result.text,
-      sourceLang: sourceLang 
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
     });
+
+    if (!response.ok) throw new Error(`Translate API returned ${response.status}`);
+
+    const data = await response.json();
+
+    // Parse the nested array response: [[["translated","original",...],...],...]
+    const translatedText = data[0]
+      .filter((chunk) => chunk[0])
+      .map((chunk) => chunk[0])
+      .join('');
+
+    const sourceLang = data[2] || 'unknown';
+
+    console.log(`🌍 Translated from ${sourceLang} to ${targetLang}: "${translatedText}"`);
+
+    res.status(200).json({ translatedText, sourceLang, targetLang });
+
   } catch (error) {
     console.error("Translation Engine Error:", error.message);
-
-    // Fallback: Use the text from the comment we found, or a generic message
-    const fallbackText = comment ? comment.text : "Original text unavailable";
-    
-    res.status(200).json({ 
-      translatedText: `[Translation Service Busy]: ${fallbackText}`,
-      error: true 
+    res.status(200).json({
+      translatedText: comment ? comment.text : "Translation unavailable",
+      error: true
     });
   }
 });

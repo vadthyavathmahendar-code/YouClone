@@ -6,7 +6,20 @@ import { Check, Zap, Crown, ShieldCheck, Star } from 'lucide-react';
 
 export default function UpgradePage() {
   const [loading, setLoading] = useState("");
+  const [razorpayReady, setRazorpayReady] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState('');
   const router = useRouter();
+
+  // Load Razorpay script dynamically
+  useEffect(() => {
+    if ((window as any).Razorpay) { setRazorpayReady(true); return; }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => setRazorpayReady(true);
+    script.onerror = () => console.error('Razorpay script failed to load');
+    document.body.appendChild(script);
+    setCurrentPlan(localStorage.getItem('userPlan') || 'Free');
+  }, []);
 
   const plans = [
     { 
@@ -36,9 +49,13 @@ export default function UpgradePage() {
   const handleUpgrade = async (planName: string, price: number) => {
     const email = localStorage.getItem('userEmail');
     if (!email) {
-        alert("Please login first");
-        router.push('/login');
-        return;
+      alert("Please login first");
+      router.push('/login');
+      return;
+    }
+    if (!razorpayReady) {
+      alert("Payment gateway is loading, please try again in a moment.");
+      return;
     }
     setLoading(planName);
 
@@ -55,7 +72,7 @@ export default function UpgradePage() {
 
       // 2. Razorpay Options
       const options = {
-        key: "rzp_test_SZ6Ai2mniklQfK", 
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_SZ6Ai2mniklQfK",
         amount: order.amount,
         currency: "INR",
         name: "YouClone Premium",
@@ -130,13 +147,22 @@ export default function UpgradePage() {
 
               <button 
                 onClick={() => handleUpgrade(p.name, p.price)}
+                disabled={loading === p.name || currentPlan === p.name}
                 className={`mt-auto w-full py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-2xl flex items-center justify-center gap-2
-                  ${p.name === 'Gold' ? 'bg-yellow-500 text-black hover:bg-yellow-400' : 'bg-red-600 text-white hover:bg-red-500'}
+                  ${currentPlan === p.name 
+                    ? 'bg-green-600 text-white cursor-default opacity-80' 
+                    : p.name === 'Gold' 
+                      ? 'bg-yellow-500 text-black hover:bg-yellow-400' 
+                      : 'bg-red-600 text-white hover:bg-red-500'}
                   ${loading === p.name ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {loading === p.name ? (
-                   <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                ) : `Activate ${p.name}`}
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                ) : currentPlan === p.name ? (
+                  `✓ Current Plan`
+                ) : (
+                  `Activate ${p.name}`
+                )}
               </button>
             </div>
           </div>

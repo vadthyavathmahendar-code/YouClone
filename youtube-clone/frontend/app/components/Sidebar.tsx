@@ -1,86 +1,110 @@
 "use client";
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { 
-  Home, Zap, PlaySquare, UserCircle, 
-  History, ShoppingBag, Music2, Film, 
-  Gamepad2, ListVideo
-} from 'lucide-react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Home, Zap, PlaySquare, UserCircle, History, Music2, Film, Gamepad2, ListVideo, TrendingUp } from 'lucide-react';
+import { Suspense } from 'react';
+
+const sections = [
+  {
+    items: [
+      { icon: Home,       label: "Home",          href: "/home" },
+      { icon: Zap,        label: "Shorts",        href: "/shorts" },
+      { icon: PlaySquare, label: "Subscriptions", href: "/subscriptions" },
+      { icon: TrendingUp, label: "Trending",      href: "/home?cat=trending" },
+    ]
+  },
+  {
+    label: "You",
+    items: [
+      { icon: UserCircle, label: "Your Channel", href: "/profile" },
+      { icon: History,    label: "History",      href: "/history" },
+      { icon: ListVideo,  label: "Playlists",    href: "/playlists" },
+    ]
+  },
+  {
+    label: "Explore",
+    items: [
+      { icon: Music2,   label: "Music",  href: "#" },
+      { icon: Film,     label: "Films",  href: "#" },
+      { icon: Gamepad2, label: "Gaming", href: "#" },
+    ]
+  }
+];
+
+function SidebarInner() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Exact match: /home only highlights Home, /home?cat=trending only highlights Trending
+  const isActive = (href: string) => {
+    const [hPath, hQuery] = href.split('?');
+    if (hQuery) {
+      // Has query — must match both path and query param
+      const key = hQuery.split('=')[0];
+      const val = hQuery.split('=')[1];
+      return pathname === hPath && searchParams.get(key) === val;
+    }
+    // No query — path must match AND no cat param present
+    return pathname === hPath && !searchParams.get('cat');
+  };
+
+  return (
+    <aside className="w-[220px] hidden lg:flex flex-col h-[calc(100vh-56px)] sticky top-14 overflow-y-auto no-scrollbar
+                      bg-white dark:bg-[#050505] border-r border-gray-100 dark:border-white/5">
+      <nav className="p-2 flex-1">
+        {sections.map((section, sIdx) => (
+          <div key={sIdx} className={sIdx !== 0 ? "mt-2 pt-2 border-t border-gray-100 dark:border-white/5" : ""}>
+            {section.label && (
+              <p className="px-3 pt-2 pb-1 text-[11px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-widest">
+                {section.label}
+              </p>
+            )}
+            {section.items.map((item) => {
+              const active = isActive(item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  prefetch={false}
+                  className={`flex items-center gap-4 px-3 py-2.5 rounded-xl mb-0.5 group
+                    transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]
+                    ${active ? 'bg-red-50 dark:bg-white/10' : 'hover:bg-gray-100 dark:hover:bg-white/5'}`}
+                >
+                  <Icon
+                    size={20}
+                    className={`flex-shrink-0 transition-colors duration-200
+                      ${active
+                        ? 'text-red-600 dark:text-red-500'
+                        : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white'}`}
+                  />
+                  <span className={`text-[13px] tracking-tight transition-colors duration-200
+                    ${active
+                      ? 'text-gray-900 dark:text-white font-bold'
+                      : 'font-semibold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white'}`}>
+                    {item.label}
+                  </span>
+                  {active && <span className="ml-auto w-1 h-4 bg-red-600 rounded-full" />}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+
+      <div className="p-4 border-t border-gray-100 dark:border-white/5">
+        <p className="text-[10px] text-gray-400 dark:text-gray-600 font-bold uppercase tracking-widest leading-relaxed">
+          © 2026 YouClone<br />Secunderabad Node
+        </p>
+      </div>
+    </aside>
+  );
+}
 
 export default function Sidebar() {
-  const pathname = usePathname();
-
-  const sections = [
-    {
-      items: [
-        { icon: <Home size={22} />, label: "Home", href: "/home" },
-        { icon: <Zap size={22} />, label: "Shorts", href: "/shorts" },
-        { icon: <PlaySquare size={22} />, label: "Subscriptions", href: "/subscriptions" },
-      ]
-    },
-    {
-      label: "You",
-      items: [
-        { icon: <UserCircle size={22} />, label: "Your channel", href: "/profile" },
-        { icon: <History size={22} />, label: "History", href: "/history" },
-        { icon: <ListVideo size={22} />, label: "Playlists", href: "/library" },
-      ]
-    },
-    {
-      label: "Explore",
-      items: [
-        { icon: <ShoppingBag size={22} />, label: "Shopping", href: "#" },
-        { icon: <Music2 size={22} />, label: "Music", href: "#" },
-        { icon: <Film size={22} />, label: "Films", href: "#" },
-        { icon: <Gamepad2 size={22} />, label: "Gaming", href: "#" },
-      ]
-    }
-  ];
-
-return (
-  <aside className="w-[240px] hidden lg:flex flex-col h-[calc(100vh-64px)] sticky top0 overflow-y-auto no-scrollbar 
-                    bg-white dark:bg-[#050505] border-r border-gray-200 dark:border-white/5 transition-colors duration-700">
-    <div className="p-3">
-      {sections.map((section, sIdx) => (
-        <div key={sIdx} className={sIdx !== 0 ? "mt-4 pt-4 border-t border-gray-200 dark:border-white/10 transition-colors duration-700" : ""}>
-          {section.label && (
-            <h3 className="px-3 py-2 text-[12px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest opacity-80">
-              {section.label}
-            </h3>
-          )}
-          {section.items.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link 
-                key={item.label} 
-                href={item.href} 
-                prefetch={false}
-                className={`flex items-center px-4 py-3 rounded-xl mb-1 transition-all group
-                  ${isActive 
-                    ? 'bg-red-50 dark:bg-white/10 font-bold' 
-                    : 'hover:bg-gray-100 dark:hover:bg-white/5'}`}
-              >
-                <span className={`mr-5 flex items-center justify-center transition-colors
-                  ${isActive ? 'text-red-600' : 'text-gray-500 dark:text-gray-400 group-hover:text-black dark:group-hover:text-white'}`}>
-                  {item.icon}
-                </span>
-                
-                <span className={`text-[14px] font-medium tracking-tight
-                  ${isActive ? 'text-black dark:text-white' : 'text-gray-700 dark:text-gray-300 group-hover:text-black dark:group-hover:text-white'}`}>
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      ))}
-    </div>
-    
-    <div className="p-6 mt-auto">
-      <p className="text-[10px] opacity-40 dark:opacity-30 font-black uppercase tracking-widest leading-relaxed text-gray-500 dark:text-white">
-        © 2026 YouClone<br/>Secunderabad Node
-      </p>
-    </div>
-  </aside>
-);
+  return (
+    <Suspense fallback={null}>
+      <SidebarInner />
+    </Suspense>
+  );
 }

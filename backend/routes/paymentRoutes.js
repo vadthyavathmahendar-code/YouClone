@@ -16,6 +16,12 @@ const planDetails = {
   100: "Gold"
 };
 
+const planPerks = {
+  Bronze: { watch: "7 minutes", downloads: "1/day", price: 10 },
+  Silver:  { watch: "10 minutes", downloads: "5/day", price: 50 },
+  Gold:    { watch: "Unlimited", downloads: "Unlimited", price: 100 },
+};
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -62,17 +68,55 @@ if (!validatedPlan || validatedPlan !== newPlan) {
   try {
     const user = await User.findOneAndUpdate({ email }, { plan: newPlan }, { new: true });
 
+    const perks = planPerks[newPlan] || {};
+    const invoiceDate = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
     // Send Invoice Email
     const mailOptions = {
-      from: '"YouClone Premium" <your-email@gmail.com>',
+      from: `"YouClone Premium" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: `Invoice - ${newPlan} Subscription`,
+      subject: `✅ Invoice - YouClone ${newPlan} Plan`,
       html: `
-        <div style="font-family: Arial; padding: 20px; border: 1px solid #eee;">
-          <h2 style="color: #ff0000;">Payment Successful!</h2>
-          <p>Hi ${user.name}, you are now a <b>${newPlan}</b> member.</p>
-          <p>Amount Paid: ₹${price}</p>
-          <p>Transaction ID: ${razorpay_payment_id}</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0f0f0f; color: #ffffff; border-radius: 12px; overflow: hidden;">
+          <div style="background: #dc2626; padding: 30px; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -1px;">YouClone</h1>
+            <p style="margin: 6px 0 0; opacity: 0.8; font-size: 13px; text-transform: uppercase; letter-spacing: 2px;">Payment Confirmed</p>
+          </div>
+          <div style="padding: 32px;">
+            <p style="font-size: 16px; margin-bottom: 24px;">Hi <b>${user.name}</b>, your upgrade to <b style="color:#dc2626;">${newPlan} Plan</b> is active!</p>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              <tr style="border-bottom: 1px solid #333;">
+                <td style="padding: 12px 0; color: #aaa;">Plan</td>
+                <td style="padding: 12px 0; font-weight: bold; text-align: right;">${newPlan}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #333;">
+                <td style="padding: 12px 0; color: #aaa;">Watch Time</td>
+                <td style="padding: 12px 0; font-weight: bold; text-align: right;">${perks.watch}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #333;">
+                <td style="padding: 12px 0; color: #aaa;">Downloads</td>
+                <td style="padding: 12px 0; font-weight: bold; text-align: right;">${perks.downloads}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #333;">
+                <td style="padding: 12px 0; color: #aaa;">Amount Paid</td>
+                <td style="padding: 12px 0; font-weight: bold; text-align: right; color: #22c55e;">₹${price}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #333;">
+                <td style="padding: 12px 0; color: #aaa;">Transaction ID</td>
+                <td style="padding: 12px 0; font-family: monospace; font-size: 12px; text-align: right;">${razorpay_payment_id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 0; color: #aaa;">Date</td>
+                <td style="padding: 12px 0; text-align: right;">${invoiceDate}</td>
+              </tr>
+            </table>
+            <div style="margin-top: 28px; padding: 16px; background: #1a1a1a; border-radius: 8px; text-align: center;">
+              <p style="margin: 0; font-size: 13px; color: #aaa;">Enjoy your <b style="color:#fff;">${newPlan}</b> benefits on YouClone!</p>
+            </div>
+          </div>
+          <div style="padding: 20px; text-align: center; border-top: 1px solid #222;">
+            <p style="margin: 0; font-size: 11px; color: #555;">This is an automated invoice. Do not reply to this email.</p>
+          </div>
         </div>`
     };
 

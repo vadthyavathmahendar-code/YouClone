@@ -11,13 +11,25 @@ const server = http.createServer(app);
 
 // 🚀 THE PRODUCTION CORS FIX
 // This allows your backend to trust both localhost AND your live Vercel frontend
-const allowedOrigins = ['http://localhost:3000', process.env.FRONTEND_URL];
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://localhost:3000',
+  process.env.FRONTEND_URL,
+  'https://you-clone-two.vercel.app'
+].filter(Boolean);
 
 // --- 1. CORS CONFIGURATION ---
 app.use(cors({
-  origin: "*", // Temporarily allow all for testing to bypass CORS errors
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Render health checks)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow any vercel.app subdomain for preview deployments
+    if (origin.endsWith('.vercel.app')) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: false // Set to false if using origin: "*"
+  credentials: true
 }));
 
 // --- 2. GLOBAL MIDDLEWARE ---
@@ -64,7 +76,12 @@ app.use((err, req, res, next) => {
 // --- 7. SOCKET.IO CONFIGURATION (WebRTC Signaling) ---
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins, // 🚀 Uses the same trusted URLs as Express
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (origin.endsWith('.vercel.app')) return callback(null, true);
+      callback(new Error('Not allowed by CORS'));
+    },
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -91,7 +108,12 @@ io.on("connection", (socket) => {
 // --- 8. DATABASE & SERVER START ---
 const PORT = process.env.PORT || 5000;
 
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(process.env.MONGO_URI, {
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 10000,
+  retryWrites: true,
+})
   .then(() => {
     console.log('✅ Connected to MongoDB');
     server.listen(PORT, () => {

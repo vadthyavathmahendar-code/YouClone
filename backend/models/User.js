@@ -31,6 +31,14 @@ state: { type: String, default: "Unknown" },
     transactionId: String
   }],
 
+  // Downloads tracking
+  downloads: [{
+    videoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Video' },
+    title: String,
+    thumbnail: String,
+    downloadedAt: { type: Date, default: Date.now }
+  }],
+
   // Task 4: OTP Authentication
   otp: { type: String },
   otpExpiry: { type: Date },
@@ -39,8 +47,7 @@ state: { type: String, default: "Unknown" },
 });
 
 // 🔥 MIDDLEWARE: Auto-reset download count if a new day has started
-// --- UPDATED MIDDLEWARE: Using the stable next() callback ---
-userSchema.pre('save', function(next) {
+userSchema.pre('save', async function() {
   try {
     const today = new Date().setHours(0, 0, 0, 0);
     const lastDate = this.lastDownloadDate ? new Date(this.lastDownloadDate) : new Date();
@@ -50,12 +57,9 @@ userSchema.pre('save', function(next) {
       this.dailyDownloadCount = 0;
       this.lastDownloadDate = new Date(); 
     }
-    
-    // 🚀 CRITICAL: Always call next() to let the save proceed
-    next();
   } catch (err) {
-    // If something fails here, pass the error to next() instead of crashing
-    next(err);
+    console.error("💥 Pre-save hook error:", err);
+    throw err;
   }
 });
 module.exports = mongoose.model('User', userSchema);

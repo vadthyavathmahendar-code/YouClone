@@ -1,9 +1,22 @@
+# Dependencies
 node_modules/
 backend/node_modules/
-youtube-clone/frontend/node_modules/git rm --cached backend/.env
-.env
+youtube-clone/frontend/node_modules/
+
+# Environment files — backend secrets (never commit)
 backend/.env
+.env
+
+# Frontend env — .env.local IS committed so Vercel picks it up
+# If you want to use Vercel dashboard env vars instead, add this line:
+# youtube-clone/frontend/.env.local
+
+# Build outputs
 .next/
 dist/
 build/
+
+# Sensitive files
 backend/firebaseServiceAccount.json.json
+*.pem
+*.key

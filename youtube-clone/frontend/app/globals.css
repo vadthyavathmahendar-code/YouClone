@@ -1,11 +1,8 @@
 @import "tailwindcss";
-
-/* Keep your custom light/dark mode CSS below this line */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* You can leave your other CSS variables below these lines */
 :root {
   --yt-white: #ffffff;
   --yt-black: #0f0f0f;
@@ -24,71 +21,82 @@
   --yt-text-sub: #aaaaaa;
 }
 
-body {
-  background-color: var(--yt-white);
-  color: var(--yt-text-main);
-}
-
-/* Category Pills Styling */
-.category-pill {
-  background-color: rgba(0, 0, 0, 0.05);
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.dark .category-pill {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-/* Update your globals.css */
 @layer base {
-  body {
-    @apply transition-colors duration-500;
-  }
+  * { @apply transition-colors duration-300; }
+  body { @apply antialiased; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-gray-300 dark:bg-white/10 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-gray-400 dark:bg-white/20; }
 }
 
-.light body {
-  background-color: #ffffff !important;
-  color: #0f0f0f !important;
-}
+/* Hide scrollbar but keep scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-.dark body {
-  background-color: #0f0f0f !important;
-  color: #ffffff !important;
-}
-
-/* Sidebar styling for Light Mode */
-.light aside {
-  background-color: #ffffff;
-  border-right: 1px solid #e5e5e5;
-}
-
-/* Text overrides for Light Mode */
-.light .text-gray-400, .light .text-gray-500 {
-  color: #606060;
-}
-/* Custom Gesture Animations */
+/* ── Gesture feedback ── */
 @keyframes gesture-pop {
-  0% { 
-    transform: translate(-50%, -50%) scale(0.5); 
-    opacity: 0; 
-  }
-  50% { 
-    transform: translate(-50%, -50%) scale(1.1); 
-    opacity: 1; 
-  }
-  100% { 
-    transform: translate(-50%, -50%) scale(1); 
-    opacity: 0; 
-  }
+  0%   { transform: translate(-50%,-50%) scale(0.4); opacity: 0; }
+  40%  { transform: translate(-50%,-50%) scale(1.15); opacity: 1; }
+  70%  { transform: translate(-50%,-50%) scale(0.95); opacity: 1; }
+  100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
+}
+.animate-gesture {
+  position: absolute; top: 50%; left: 50%;
+  animation: gesture-pop 0.65s cubic-bezier(0.22,1,0.36,1) forwards;
+  pointer-events: none;
 }
 
-.animate-gesture {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  animation: gesture-pop 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+/* ── Skeleton shimmer ── */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
 }
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+.dark .skeleton {
+  background: linear-gradient(90deg, #1a1a1a 25%, #252525 50%, #1a1a1a 75%);
+  background-size: 600px 100%;
+}
+
+/* ── Fade-in for cards ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeInUp {
+  animation: fadeInUp 0.4s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+/* ── Stagger children ── */
+.stagger > *:nth-child(1)  { animation-delay: 0ms; }
+.stagger > *:nth-child(2)  { animation-delay: 50ms; }
+.stagger > *:nth-child(3)  { animation-delay: 100ms; }
+.stagger > *:nth-child(4)  { animation-delay: 150ms; }
+.stagger > *:nth-child(5)  { animation-delay: 200ms; }
+.stagger > *:nth-child(6)  { animation-delay: 250ms; }
+.stagger > *:nth-child(7)  { animation-delay: 300ms; }
+.stagger > *:nth-child(8)  { animation-delay: 350ms; }
+
+/* ── Smooth page transitions ── */
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+main > * { animation: pageFadeIn 0.35s cubic-bezier(0.22,1,0.36,1) both; }
+
+/* ── Glow pulse for live badge ── */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 6px 0 rgba(220,38,38,0.6); }
+  50%       { box-shadow: 0 0 14px 4px rgba(220,38,38,0.9); }
+}
+.glow-red { animation: glow-pulse 2s ease-in-out infinite; }
+
+/* ── Smooth video card hover ── */
+.video-card { transition: transform 0.25s cubic-bezier(0.22,1,0.36,1); }
+.video-card:hover { transform: translateY(-3px); }
+.video-card:hover .thumb-img { transform: scale(1.06); }
+.thumb-img { transition: transform 0.5s cubic-bezier(0.22,1,0.36,1); }

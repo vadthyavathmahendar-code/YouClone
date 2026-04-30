@@ -44,6 +44,12 @@ const sendEmailOTP = async (toEmail, otp) => {
 // Task 4: SMS OTP for other regions
 const sendMobileOTP = async (toNumber, otp) => {
   try {
+    // Validate Twilio credentials exist
+    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
+      console.warn("⚠️ Twilio credentials missing - SMS OTP disabled");
+      return false;
+    }
+
     const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
     await client.messages.create({
       body: `[YouClone Node] Your secure access code is: ${otp}`,
@@ -51,9 +57,17 @@ const sendMobileOTP = async (toNumber, otp) => {
       to: toNumber 
     });
     console.log(`🚀 SMS OTP successfully dispatched to ${toNumber}`);
+    return true;
   } catch (error) {
     // 🛑 THIS STOPS THE 500 ERROR: Log the Twilio failure but continue
     console.error("💥 Twilio Dispatch Failure (Handled):", error.message);
+    
+    // Log specific Twilio error codes for debugging
+    if (error.code) {
+      console.error(`   Twilio Error Code: ${error.code}`);
+    }
+    
+    return false;
   }
 };
 
@@ -112,15 +126,36 @@ router.post('/signup', async (req, res) => {
         message: "OTP sent to your email." 
       });
     } else {
-      // If phone exists, send SMS, otherwise fallback
+      // Try SMS first if phone exists, otherwise use email
       if (user.phone) {
-        sendMobileOTP(user.phone, otp);
+        const formattedPhone = user.phone.startsWith('+') ? user.phone : `+91${user.phone}`;
+        const smsSent = await sendMobileOTP(formattedPhone, otp);
+        
+        if (!smsSent) {
+          // SMS failed, fallback to email
+          console.warn("⚠️ SMS failed during signup, using email OTP");
+          sendEmailOTP(user.email, otp);
+          return res.status(200).json({ 
+            requiresOTP: true, 
+            authType: "email", 
+            message: "OTP sent to your email (SMS service unavailable)." 
+          });
+        }
+        
+        return res.status(200).json({ 
+          requiresOTP: true, 
+          authType: "mobile", 
+          message: "OTP sent to your mobile." 
+        });
+      } else {
+        // No phone number, use email
+        sendEmailOTP(user.email, otp);
+        return res.status(200).json({ 
+          requiresOTP: true, 
+          authType: "email", 
+          message: "OTP sent to your email." 
+        });
       }
-      return res.status(200).json({ 
-        requiresOTP: true, 
-        authType: "mobile", 
-        message: "OTP sent to your mobile." 
-      });
     }
 
   } catch (err) {
@@ -162,15 +197,37 @@ router.post('/login', async (req, res) => {
     } else {
       // --- REGION B: GLOBAL/OTHER (Twilio OTP) ---
       if (!user.phone) {
-        return res.status(400).json({ error: "Mobile number missing for SMS authentication." });
+        // Fallback to email if no phone number
+        console.warn("⚠️ No phone number, falling back to email OTP");
+        sendEmailOTP(user.email, otp);
+        
+        return res.status(200).json({ 
+          requiresOTP: true, 
+          authType: "email", 
+          email: user.email,
+          message: "OTP sent to your email (phone number not available)"
+        });
       }
 
       const formattedPhone = user.phone.startsWith('+') ? user.phone : `+91${user.phone}`;
 
-      // 🚀 THE FIX: We trigger the SMS but we DO NOT throw a 500 error if it fails
-      sendMobileOTP(formattedPhone, otp);
+      // 🚀 Try SMS first, fallback to email if it fails
+      const smsSent = await sendMobileOTP(formattedPhone, otp);
+      
+      if (!smsSent) {
+        // Twilio failed, use email as fallback
+        console.warn("⚠️ SMS failed, falling back to email OTP");
+        sendEmailOTP(user.email, otp);
+        
+        return res.status(200).json({ 
+          requiresOTP: true, 
+          authType: "email", 
+          email: user.email,
+          message: "OTP sent to your email (SMS service unavailable)"
+        });
+      }
 
-      // We return 200 OK regardless so the frontend can move to the OTP page
+      // SMS sent successfully
       return res.status(200).json({ 
         requiresOTP: true, 
         authType: "mobile", 
@@ -233,8 +290,20 @@ router.post('/verify-otp', async (req, res) => {
 router.get('/profile', async (req, res) => {
   try {
     const { email } = req.query;
+    
+    console.log("📋 Profile Request - Email:", email);
+    
+    if (!email || email === 'null' || email === 'undefined') {
+      console.error("❌ Invalid email parameter:", email);
+      return res.status(400).json({ error: "Email parameter is required" });
+    }
+    
     const user = await User.findOne({ email }).select('-password');
-    if (!user) return res.status(404).json({ error: "User not found" });
+    
+    if (!user) {
+      console.error("❌ User not found for email:", email);
+      return res.status(404).json({ error: "User not found" });
+    }
     
     const today = new Date().toDateString();
     const lastDown = new Date(user.lastDownloadDate || Date.now()).toDateString();
@@ -244,8 +313,11 @@ router.get('/profile', async (req, res) => {
       user.lastDownloadDate = new Date();
       await user.save();
     }
+    
+    console.log("✅ Profile fetched successfully for:", email);
     return res.json(user);
   } catch (err) {
+    console.error("💥 Profile Route Error:", err.message, err.stack);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -268,11 +340,22 @@ router.post('/update', async (req, res) => {
 // INCREMENT DOWNLOAD: Tracker (Task 2)
 router.post('/increment-download', async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, videoId, title, thumbnail } = req.body;
     const user = await User.findOne({ email });
     if (user) {
       user.dailyDownloadCount += 1;
       user.lastDownloadDate = new Date();
+
+      // Save download record if video info provided
+      if (videoId && title) {
+        user.downloads = user.downloads || [];
+        // Avoid duplicates — move to top if already exists
+        user.downloads = user.downloads.filter((d) => d.videoId?.toString() !== videoId);
+        user.downloads.unshift({ videoId, title, thumbnail: thumbnail || '', downloadedAt: new Date() });
+        // Keep only last 50 downloads
+        if (user.downloads.length > 50) user.downloads = user.downloads.slice(0, 50);
+      }
+
       await user.save();
       return res.json({ success: true, count: user.dailyDownloadCount });
     }

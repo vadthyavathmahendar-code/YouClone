@@ -3,15 +3,15 @@ import { API_URL } from '../../config';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { ThumbsUp, ThumbsDown, Download, Play, Maximize, Languages, MapPin, Loader2 } from 'lucide-react';
-const PLAN_LIMITS: Record<string, number> = { 'Free': 300, 'Bronze': 420, 'Silver': 600, 'Gold': 999999 };
+const PLAN_LIMITS: Record<string, number> = { 'Free': 300, 'Bronze': 420, 'Silver': 600, 'Gold': Infinity };
 export default function WatchPage() {
   const { id } = useParams();
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  // NEW: Ref to track click timers to prevent AbortErrors
-  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTapXRef = useRef(0);
   
   const [video, setVideo] = useState<any>(null);
   const [user, setUser] = useState<any>(null); 
@@ -109,76 +109,89 @@ useEffect(() => {
     }
   };
 
-  // FIXED: Bulletproof gestures that prevent AbortError
+  // Gesture handler using tap count tracking (reliable cross-browser)
   const handleGestures = (e: React.MouseEvent) => {
-  const videoElement = videoRef.current;
-  if (!videoElement || isLimitReached) return;
+    const videoElement = videoRef.current;
+    if (!videoElement || isLimitReached) return;
 
-  const rect = e.currentTarget.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const width = rect.width;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const width = rect.width;
 
-  if (clickTimeoutRef.current) {
-    clearTimeout(clickTimeoutRef.current);
-    clickTimeoutRef.current = null;
-  }
+    tapCountRef.current += 1;
+    lastTapXRef.current = x;
 
-  // --- SINGLE TAP: PAUSE/RESUME ---
-  if (e.detail === 1) {
-    clickTimeoutRef.current = setTimeout(() => {
-      if (videoElement.paused) {
-        videoElement.play().then(() => setIsPlaying(true)).catch(() => {});
-        setGesturePulse("▶"); // Smooth Play Icon
-      } else {
-        videoElement.pause();
-        setIsPlaying(false);
-        setGesturePulse("⏸"); // Smooth Pause Icon
+    // Clear any pending timer
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+
+    tapTimerRef.current = setTimeout(() => {
+      const taps = tapCountRef.current;
+      const tapX = lastTapXRef.current;
+      tapCountRef.current = 0;
+
+      const isLeft   = tapX < width * 0.33;
+      const isRight  = tapX > width * 0.66;
+      const isCenter = !isLeft && !isRight;
+
+      if (taps === 1) {
+        // Single tap anywhere — pause/resume
+        if (videoElement.paused) {
+          videoElement.play().then(() => setIsPlaying(true)).catch(() => {});
+          setGesturePulse("▶");
+        } else {
+          videoElement.pause();
+          setIsPlaying(false);
+          setGesturePulse("⏸");
+        }
+      } else if (taps === 2) {
+        // Double tap — seek ±10s based on side
+        if (isRight) {
+          videoElement.currentTime = Math.min(videoElement.duration, videoElement.currentTime + 10);
+          setGesturePulse("⏩ +10s");
+        } else if (isLeft) {
+          videoElement.currentTime = Math.max(0, videoElement.currentTime - 10);
+          setGesturePulse("⏪ -10s");
+        } else {
+          // Double tap center — pause/resume
+          if (videoElement.paused) {
+            videoElement.play().then(() => setIsPlaying(true)).catch(() => {});
+            setGesturePulse("▶");
+          } else {
+            videoElement.pause();
+            setIsPlaying(false);
+            setGesturePulse("⏸");
+          }
+        }
+      } else if (taps >= 3) {
+        // Triple tap
+        if (isRight) {
+          setGesturePulse("✕ Closing...");
+          setTimeout(() => window.close(), 600);
+        } else if (isLeft) {
+          setGesturePulse("💬 Comments");
+          document.getElementById('comment-box')?.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          // Center — skip to next video
+          setGesturePulse("⏭ Next Video");
+          setTimeout(() => router.push('/home'), 500);
+        }
       }
-      setTimeout(() => setGesturePulse(null), 600);
-    }, 250);
-  } 
 
-  // --- DOUBLE TAP: SEEK 10s ---
-  else if (e.detail === 2) {
-    const isRight = x > width / 2;
-    setGesturePulse(isRight ? " +10s" : " -10s");
-    
-    if (isRight) videoElement.currentTime += 10;
-    else videoElement.currentTime -= 10;
-
-    setTimeout(() => setGesturePulse(null), 600);
-  }
-
-  // --- TRIPLE TAP: ADVANCED CONTROLS ---
-  else if (e.detail === 3) {
-    if (x > width * 0.7) {
-      // 1. Right Side -> Close
-      setGesturePulse("Closing...");
-      setTimeout(() => window.close(), 500);
-    } 
-    else if (x < width * 0.3) {
-      // 2. Left Side -> Scroll to Comments
-      setGesturePulse("💬 Comments");
-      document.getElementById('comment-box')?.scrollIntoView({ behavior: 'smooth' });
-    } 
-    else {
-      // 3. Center -> Skip to Next (Home)
-      setGesturePulse("⏭ Next Video");
-      setTimeout(() => router.push('/home'), 500);
-    }
-    setTimeout(() => setGesturePulse(null), 800);
-  }
-};
+      setTimeout(() => setGesturePulse(null), 700);
+    }, 280); // 280ms window to collect taps
+  };
 const handleDownload = async () => {
-  // 1. Plan Restriction Check
-  if (user?.plan === 'Free' && (user?.dailyDownloadCount || 0) >= 1) {
-    alert("🔒 Daily limit reached for Free users. Upgrade to Premium for unlimited downloads!");
+  // 1. Plan-based limit check
+  const planLimits: Record<string, number> = { Free: 1, Bronze: 1, Silver: 5, Gold: Infinity };
+  const limit = planLimits[user?.plan || 'Free'];
+
+  if ((user?.dailyDownloadCount || 0) >= limit) {
+    alert(`🔒 Daily download limit reached for ${user?.plan || 'Free'} plan. Upgrade for more downloads!`);
     router.push('/upgrade');
     return;
   }
 
   try {
-    // 2. The "Blob" Fix (Ensures the file actually downloads)
     const response = await fetch(video.videoUrl);
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
@@ -188,30 +201,32 @@ const handleDownload = async () => {
     a.download = `${video.title.replace(/\s+/g, '_')}.mp4`;
     document.body.appendChild(a);
     a.click();
-    
-    // Cleanup
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
 
-    // 3. Backend Sync (Increments the count in your database)
+    // Sync to backend with video info for Downloads section
     if (user?.email) {
       await fetch(`${API_URL}/api/auth/increment-download`, {
         method: 'POST',
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: user.email })
+        body: JSON.stringify({ 
+          email: user.email,
+          videoId: video._id,
+          title: video.title,
+          thumbnail: video.thumbnailUrl || video.thumbnail || ''
+        })
       });
 
-      // Update local state
       setUser((prev: any) => ({
         ...prev,
         dailyDownloadCount: (prev?.dailyDownloadCount || 0) + 1
       }));
     }
 
-    alert(`✅ Download started from ${user?.location || 'Secunderabad Node'}!`);
+    alert(`✅ Download started!`);
   } catch (err) {
     console.error("Download Error:", err);
-    alert("Download failed. This is usually due to CORS settings on the video source.");
+    alert("Download failed. This may be due to CORS settings on the video source.");
   }
 };
 
@@ -269,30 +284,41 @@ const handlePostComment = async () => {
     } catch (err) {}
   };
 
-  const handleTranslate = async (commentId: string) => {
-  try {
-    // Check if it's already translated (to toggle back)
-    const existing = comments.find(c => c._id === commentId);
-    if (existing?.isTranslated) {
-      setComments(comments.map(c => c._id === commentId ? { ...c, isTranslated: false } : c));
-      return;
-    }
+  const LANGUAGES: Record<string, string> = {
+    en: "English", hi: "Hindi", te: "Telugu", ta: "Tamil",
+    kn: "Kannada", ml: "Malayalam", fr: "French", es: "Spanish",
+    de: "German", zh: "Chinese", ar: "Arabic", ja: "Japanese"
+  };
 
-   const res = await fetch(`${API_URL}/api/comments/${commentId}/translate`, { 
-  method: 'POST',
-  headers: { "Content-Type": "application/json" }
-});
-    const data = await res.json();
-    
-    setComments(comments.map(c => c._id === commentId ? { 
-      ...c, 
-      isTranslated: true, 
-      translatedText: data.translatedText 
-    } : c));
-  } catch (err) {
-    console.error("Translation Error:", err);
-  }
-};
+  const handleTranslate = async (commentId: string, targetLang?: string) => {
+    try {
+      const existing = comments.find(c => c._id === commentId);
+
+      // Toggle back to original
+      if (existing?.isTranslated && !targetLang) {
+        setComments(comments.map(c => c._id === commentId ? { ...c, isTranslated: false } : c));
+        return;
+      }
+
+      const lang = targetLang || 'en';
+
+      const res = await fetch(`${API_URL}/api/comments/${commentId}/translate`, { 
+        method: 'POST',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetLang: lang })
+      });
+      const data = await res.json();
+      
+      setComments(comments.map(c => c._id === commentId ? { 
+        ...c, 
+        isTranslated: true, 
+        translatedText: data.translatedText,
+        translatedTo: LANGUAGES[lang] || lang
+      } : c));
+    } catch (err) {
+      console.error("Translation Error:", err);
+    }
+  };
 
 
   if (!video) return <div className="h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-red-600"/></div>;
@@ -303,26 +329,33 @@ const handlePostComment = async () => {
         
         <div ref={containerRef} className="relative aspect-video bg-black rounded-3xl overflow-hidden group shadow-2xl">
           <video 
-  ref={videoRef} 
-  key={video?._id}
-  src={video.videoUrl} 
-  className="w-full h-full" // Removed pointer-events-none so you can interact with it
-  onTimeUpdate={handleTimeUpdate} 
-  autoPlay 
-  controls // Add this so you can see the play/pause buttons
-  playsInline // Better for mobile browser support
-  muted
-  crossOrigin="anonymous" // CRITICAL for playing videos from external URLs (Google CDN)
-  preload="metadata" // Preload metadata to get duration info without downloading the whole video
-/>
+            ref={videoRef} 
+            key={video?._id}
+            src={video.videoUrl} 
+            className="w-full h-full"
+            onTimeUpdate={handleTimeUpdate} 
+            autoPlay 
+            playsInline
+            muted
+            crossOrigin="anonymous"
+            preload="metadata"
+          />
 
           {gesturePulse && (
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40
-                    bg-black/60 backdrop-blur-sm px-8 py-4 rounded-full 
-                    text-white font-black text-2xl pointer-events-none animate-pulse">
-      {gesturePulse}
-    </div>
-  )}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40
+                            bg-black/70 backdrop-blur-sm px-8 py-4 rounded-2xl 
+                            text-white font-black text-2xl pointer-events-none
+                            animate-bounce">
+              {gesturePulse}
+            </div>
+          )}
+
+          {/* Gesture hint zones — visible on hover */}
+          <div className="absolute inset-0 z-10 flex pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="flex-1 flex items-center justify-center text-white/20 text-xs font-black uppercase tracking-widest">⏪ Double tap</div>
+            <div className="flex-1 flex items-center justify-center text-white/20 text-xs font-black uppercase tracking-widest">Tap</div>
+            <div className="flex-1 flex items-center justify-center text-white/20 text-xs font-black uppercase tracking-widest">Double tap ⏩</div>
+          </div>
 
           <div className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer" onClick={handleGestures}>
             {!isPlaying && !isLimitReached && <div className="bg-black/50 p-6 rounded-full"><Play size={48} fill="white" /></div>}
@@ -429,13 +462,29 @@ const handlePostComment = async () => {
           </button>
 
           {/* TASK 1: Translate Toggle */}
-          <button 
-            onClick={() => handleTranslate(c._id)} 
-            className={`transition-all flex items-center gap-1 text-[10px] font-black uppercase tracking-tighter
-              ${c.isTranslated ? 'text-blue-500 opacity-100' : 'opacity-20 hover:opacity-100'}`}
-          >
-            <Languages size={14}/> {c.isTranslated ? "Original" : "Translate"}
-          </button>
+          <div className="relative group/lang">
+            <button 
+              onClick={() => c.isTranslated ? handleTranslate(c._id) : handleTranslate(c._id, 'en')} 
+              className={`transition-all flex items-center gap-1 text-[10px] font-black uppercase tracking-tighter
+                ${c.isTranslated ? 'text-blue-500 opacity-100' : 'opacity-20 hover:opacity-100'}`}
+            >
+              <Languages size={14}/> {c.isTranslated ? `${c.translatedTo || 'EN'} ✓` : "Translate"}
+            </button>
+            {/* Language picker dropdown */}
+            {!c.isTranslated && (
+              <div className="absolute bottom-6 left-0 hidden group-hover/lang:flex flex-wrap gap-1 bg-white dark:bg-[#222] border border-gray-200 dark:border-white/10 rounded-2xl p-2 shadow-xl z-50 w-52">
+                {Object.entries(LANGUAGES).map(([code, name]) => (
+                  <button
+                    key={code}
+                    onClick={(e) => { e.stopPropagation(); handleTranslate(c._id, code); }}
+                    className="text-[10px] font-bold px-2 py-1 rounded-lg hover:bg-blue-500 hover:text-white transition-colors"
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
