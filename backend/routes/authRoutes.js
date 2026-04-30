@@ -9,14 +9,14 @@ require('dotenv').config();
 
 // --- 1. COMMUNICATION HELPERS ---
 
-// Reusable transporter — Brevo SMTP (works on Render free tier)
+// Reusable transporter — Brevo SMTP on port 2525 (works on Render free tier)
 const transporter = nodemailer.createTransport({
   host: 'smtp-relay.brevo.com',
-  port: 587,
+  port: 2525,          // port 2525 bypasses Render's SMTP blocking
   secure: false,
   auth: {
-    user: process.env.BREVO_SMTP_USER,   // your Brevo login email
-    pass: process.env.BREVO_SMTP_PASS,   // Brevo SMTP key (not account password)
+    user: process.env.BREVO_SMTP_USER,
+    pass: process.env.BREVO_SMTP_PASS,
   },
   tls: { rejectUnauthorized: false },
   pool: true,
