@@ -9,43 +9,46 @@ require('dotenv').config();
 
 // --- 1. COMMUNICATION HELPERS ---
 
-// Task 4: Email OTP for South India
-const sendEmailOTP = async (toEmail, otp) => {
-  try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,          // port 587 + STARTTLS works on Render free tier
-      secure: false,      // false = STARTTLS (not SSL)
-      family: 4,          // force IPv4
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-      tls: { rejectUnauthorized: false }
-    });
+// Reusable transporter — created once, not on every request
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  family: 4,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  tls: { rejectUnauthorized: false },
+  pool: true,          // keep connection alive
+  maxConnections: 3,
+});
 
-    await transporter.sendMail({
-      from: `"YouClone Security" <${process.env.EMAIL_USER}>`,
-      to: toEmail,
-      subject: 'Your YouClone OTP Code',
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0f0f0f;color:#fff;border-radius:12px;overflow:hidden;">
-          <div style="background:#dc2626;padding:24px;text-align:center;">
-            <h2 style="margin:0;font-size:22px;font-weight:900;">YouClone</h2>
-            <p style="margin:4px 0 0;opacity:0.8;font-size:12px;text-transform:uppercase;letter-spacing:2px;">Access Verification</p>
-          </div>
-          <div style="padding:32px;text-align:center;">
-            <p style="margin:0 0 16px;font-size:15px;opacity:0.7;">Your one-time access code is:</p>
-            <div style="font-size:42px;font-weight:900;letter-spacing:12px;background:#1a1a1a;padding:20px;border-radius:8px;display:inline-block;color:#fff;">${otp}</div>
-            <p style="margin:20px 0 0;font-size:12px;opacity:0.4;">Valid for 10 minutes. Do not share this code.</p>
-          </div>
+// Task 4: Email OTP — fires in background, never blocks the response
+const sendEmailOTP = (toEmail, otp) => {
+  // No await — fire and forget so login responds instantly
+  transporter.sendMail({
+    from: `"YouClone Security" <${process.env.EMAIL_USER}>`,
+    to: toEmail,
+    subject: 'Your YouClone OTP Code',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0f0f0f;color:#fff;border-radius:12px;overflow:hidden;">
+        <div style="background:#dc2626;padding:24px;text-align:center;">
+          <h2 style="margin:0;font-size:22px;font-weight:900;">YouClone</h2>
+          <p style="margin:4px 0 0;opacity:0.8;font-size:12px;text-transform:uppercase;letter-spacing:2px;">Access Verification</p>
         </div>
-      `
-    });
+        <div style="padding:32px;text-align:center;">
+          <p style="margin:0 0 16px;font-size:15px;opacity:0.7;">Your one-time access code is:</p>
+          <div style="font-size:42px;font-weight:900;letter-spacing:12px;background:#1a1a1a;padding:20px;border-radius:8px;display:inline-block;color:#fff;">${otp}</div>
+          <p style="margin:20px 0 0;font-size:12px;opacity:0.4;">Valid for 10 minutes. Do not share this code.</p>
+        </div>
+      </div>
+    `
+  }).then(() => {
     console.log(`📧 OTP Email sent to ${toEmail}`);
-  } catch (error) {
-    console.error("💥 Nodemailer Failure (Handled):", error.message);
-  }
+  }).catch(err => {
+    console.error("💥 Nodemailer Failure (Handled):", err.message);
+  });
 };
 
 // Task 4: SMS OTP — Twilio credentials invalid (error 20003), disabled
@@ -102,43 +105,25 @@ router.post('/signup', async (req, res) => {
 
     // --- TASK 4: REGIONAL DISPATCH ---
     if (isSouthIndia(user.location)) {
-      await sendEmailOTP(user.email, otp);
-      console.log(`📧 Signup OTP sent to: ${user.email} | OTP: ${otp}`);
+      sendEmailOTP(user.email, otp); // fire and forget
+      console.log(`📧 Signup OTP dispatched to: ${user.email}`);
       return res.status(200).json({ 
         requiresOTP: true, 
         authType: "email", 
         message: "OTP sent to your email." 
       });
     } else {
-      // Try SMS first if phone exists, otherwise use email
       if (user.phone) {
         const formattedPhone = user.phone.startsWith('+') ? user.phone : `+91${user.phone}`;
         const smsSent = await sendMobileOTP(formattedPhone, otp);
-        
         if (!smsSent) {
-          // SMS failed, fallback to email
-          console.warn("⚠️ SMS failed during signup, using email OTP");
           sendEmailOTP(user.email, otp);
-          return res.status(200).json({ 
-            requiresOTP: true, 
-            authType: "email", 
-            message: "OTP sent to your email (SMS service unavailable)." 
-          });
+          return res.status(200).json({ requiresOTP: true, authType: "email", message: "OTP sent to your email." });
         }
-        
-        return res.status(200).json({ 
-          requiresOTP: true, 
-          authType: "mobile", 
-          message: "OTP sent to your mobile." 
-        });
+        return res.status(200).json({ requiresOTP: true, authType: "mobile", message: "OTP sent to your mobile." });
       } else {
-        // No phone number, use email
         sendEmailOTP(user.email, otp);
-        return res.status(200).json({ 
-          requiresOTP: true, 
-          authType: "email", 
-          message: "OTP sent to your email." 
-        });
+        return res.status(200).json({ requiresOTP: true, authType: "email", message: "OTP sent to your email." });
       }
     }
 
@@ -168,41 +153,30 @@ router.post('/login', async (req, res) => {
 
     // 3. REGIONAL OTP DISPATCH
     if (isSouthIndia(user.location)) {
-      // ── SOUTH INDIA → Email OTP ──
-      await sendEmailOTP(user.email, otp);
-      console.log(`📧 [South India] Email OTP → ${user.email}`);
+      sendEmailOTP(user.email, otp); // fire and forget — responds instantly
+      console.log(`📧 [South India] Email OTP dispatched → ${user.email}`);
       return res.status(200).json({ 
-        requiresOTP: true, 
-        authType: "email", 
-        email: user.email,
+        requiresOTP: true, authType: "email", email: user.email,
         message: "OTP sent to your registered email address"
       });
     } else {
-      // ── OTHER REGIONS → SMS OTP (with email fallback) ──
       let smsSent = false;
       if (user.phone) {
         const formattedPhone = user.phone.startsWith('+') ? user.phone : `+91${user.phone}`;
         smsSent = await sendMobileOTP(formattedPhone, otp);
         if (smsSent) {
-          // Also send email as backup
-          sendEmailOTP(user.email, otp);
-          console.log(`📱 [Other Region] SMS OTP → ${formattedPhone}`);
+          sendEmailOTP(user.email, otp); // backup email
           return res.status(200).json({ 
-            requiresOTP: true, 
-            authType: "mobile", 
-            email: user.email,
-            mobile: formattedPhone,
-            message: "OTP sent to your registered mobile number"
+            requiresOTP: true, authType: "mobile", email: user.email,
+            mobile: formattedPhone, message: "OTP sent to your registered mobile number"
           });
         }
       }
-      // SMS failed or no phone — fallback to email
-      await sendEmailOTP(user.email, otp);
-      console.log(`📧 [Other Region - SMS fallback] Email OTP → ${user.email}`);
+      // SMS failed or no phone — email fallback
+      sendEmailOTP(user.email, otp); // fire and forget
+      console.log(`📧 [Other Region] Email OTP dispatched → ${user.email}`);
       return res.status(200).json({ 
-        requiresOTP: true, 
-        authType: "email", 
-        email: user.email,
+        requiresOTP: true, authType: "email", email: user.email,
         message: "OTP sent to your registered email address"
       });
     }
