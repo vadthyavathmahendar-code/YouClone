@@ -182,11 +182,11 @@ router.post('/login', async (req, res) => {
     user.otpExpiry = new Date(Date.now() + 10 * 60000); 
     await user.save();
 
-    // 3. REGIONAL LOGIC GATE (Task 4)
+    // 3. ALWAYS send Email OTP (reliable) + try SMS as bonus for non-South India
     if (isSouthIndia(user.location)) {
-      // --- REGION A: SOUTH INDIA (Email OTP) ---
-      // We don't await this so that even if Gmail is slow, the user isn't blocked
-      sendEmailOTP(user.email, otp); 
+      // South India — Email OTP (primary)
+      await sendEmailOTP(user.email, otp);
+      console.log(`📧 OTP sent to email: ${user.email}`);
       
       return res.status(200).json({ 
         requiresOTP: true, 
@@ -195,48 +195,34 @@ router.post('/login', async (req, res) => {
       });
 
     } else {
-      // --- REGION B: GLOBAL/OTHER (Twilio OTP) ---
-      if (!user.phone) {
-        // Fallback to email if no phone number
-        console.warn("⚠️ No phone number, falling back to email OTP");
-        sendEmailOTP(user.email, otp);
+      // Other regions — try SMS, but ALWAYS send email as well
+      await sendEmailOTP(user.email, otp); // Always send email
+      console.log(`📧 OTP also sent to email: ${user.email}`);
+
+      if (user.phone) {
+        const formattedPhone = user.phone.startsWith('+') ? user.phone : `+91${user.phone}`;
+        const smsSent = await sendMobileOTP(formattedPhone, otp);
         
-        return res.status(200).json({ 
-          requiresOTP: true, 
-          authType: "email", 
-          email: user.email,
-          message: "OTP sent to your email (phone number not available)"
-        });
+        if (smsSent) {
+          return res.status(200).json({ 
+            requiresOTP: true, 
+            authType: "mobile", 
+            email: user.email,
+            mobile: formattedPhone,
+            message: "OTP sent to your mobile and email"
+          });
+        }
       }
 
-      const formattedPhone = user.phone.startsWith('+') ? user.phone : `+91${user.phone}`;
-
-      // 🚀 Try SMS first, fallback to email if it fails
-      const smsSent = await sendMobileOTP(formattedPhone, otp);
-      
-      if (!smsSent) {
-        // Twilio failed, use email as fallback
-        console.warn("⚠️ SMS failed, falling back to email OTP");
-        sendEmailOTP(user.email, otp);
-        
-        return res.status(200).json({ 
-          requiresOTP: true, 
-          authType: "email", 
-          email: user.email,
-          message: "OTP sent to your email (SMS service unavailable)"
-        });
-      }
-
-      // SMS sent successfully
+      // SMS not available or failed — email already sent above
       return res.status(200).json({ 
         requiresOTP: true, 
-        authType: "mobile", 
+        authType: "email", 
         email: user.email,
-        mobile: formattedPhone 
+        message: "OTP sent to your email"
       });
     }
   } catch (err) {
-    // This only triggers if MongoDB or your code has a fatal logic flaw
     console.error("💥 Authentication Node Failure:", err.message);
     return res.status(500).json({ error: "System-level authentication failure." });
   }
