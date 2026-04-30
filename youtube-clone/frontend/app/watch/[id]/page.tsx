@@ -284,9 +284,11 @@ const handlePostComment = async () => {
   };
 
   const LANGUAGES: Record<string, string> = {
-    en: "English", hi: "Hindi", te: "Telugu", ta: "Tamil",
-    kn: "Kannada", ml: "Malayalam", fr: "French", es: "Spanish",
-    de: "German", zh: "Chinese", ar: "Arabic", ja: "Japanese"
+    en: "English",
+    hi: "Hindi",
+    te: "Telugu",
+    ta: "Tamil",
+    ur: "Urdu",
   };
 
   const handleTranslate = async (commentId: string, targetLang?: string) => {
@@ -500,44 +502,49 @@ const handlePostComment = async () => {
           )}
         </p>
 
-        <div className="flex items-center gap-6 mt-3">
-          {/* Like/Dislike with Task 1 Threshold Logic */}
+        <div className="flex items-center gap-5 mt-3">
           <button 
             onClick={() => handleVote(c._id, 'like')} 
-            className="opacity-40 hover:opacity-100 hover:text-blue-500 transition-all flex items-center gap-1 active:scale-90"
+            className="opacity-40 hover:opacity-100 hover:text-blue-500 transition-all flex items-center gap-1 active:scale-90 text-sm"
           >
             <ThumbsUp size={14}/> {c.likes || 0}
           </button>
-
           <button 
             onClick={() => handleVote(c._id, 'dislike')} 
-            className="opacity-40 hover:opacity-100 hover:text-red-500 transition-all flex items-center gap-1 active:scale-90"
+            className="opacity-40 hover:opacity-100 hover:text-red-500 transition-all flex items-center gap-1 active:scale-90 text-sm"
           >
             <ThumbsDown size={14}/> {c.dislikes || 0}
           </button>
+        </div>
 
-          {/* TASK 1: Translate Toggle */}
-          <div className="relative group/lang">
-            <button 
-              onClick={() => c.isTranslated ? handleTranslate(c._id) : handleTranslate(c._id, 'en')} 
-              className={`transition-all flex items-center gap-1 text-[10px] font-black uppercase tracking-tighter
-                ${c.isTranslated ? 'text-blue-500 opacity-100' : 'opacity-20 hover:opacity-100'}`}
-            >
-              <Languages size={14}/> {c.isTranslated ? `${c.translatedTo || 'EN'} ✓` : "Translate"}
-            </button>
-            {/* Language picker dropdown */}
-            {!c.isTranslated && (
-              <div className="absolute bottom-6 left-0 hidden group-hover/lang:flex flex-wrap gap-1 bg-white dark:bg-[#222] border border-gray-200 dark:border-white/10 rounded-2xl p-2 shadow-xl z-50 w-52">
+        </div>
+          <div className="flex items-center gap-1 mt-1 flex-wrap">
+            {c.isTranslated ? (
+              <button
+                onClick={() => handleTranslate(c._id)}
+                className="flex items-center gap-1 text-[10px] text-blue-500 font-bold px-2 py-0.5 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+              >
+                <Languages size={11} /> {c.translatedTo} · Show original
+              </button>
+            ) : (
+              <>
+                <span className="text-[10px] text-gray-400 dark:text-gray-600 mr-1 flex items-center gap-1">
+                  <Languages size={11} />
+                </span>
                 {Object.entries(LANGUAGES).map(([code, name]) => (
                   <button
                     key={code}
-                    onClick={(e) => { e.stopPropagation(); handleTranslate(c._id, code); }}
-                    className="text-[10px] font-bold px-2 py-1 rounded-lg hover:bg-blue-500 hover:text-white transition-colors"
+                    onClick={() => handleTranslate(c._id, code)}
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-all
+                      ${code === 'en'
+                        ? 'bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-700 dark:hover:bg-gray-200'
+                        : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20 hover:text-gray-900 dark:hover:text-white'
+                      }`}
                   >
                     {name}
                   </button>
                 ))}
-              </div>
+              </>
             )}
           </div>
         </div>
