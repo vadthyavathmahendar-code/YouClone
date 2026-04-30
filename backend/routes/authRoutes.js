@@ -119,7 +119,8 @@ router.post('/signup', async (req, res) => {
 
     // --- TASK 4: REGIONAL DISPATCH ---
     if (isSouthIndia(user.location)) {
-      sendEmailOTP(user.email, otp);
+      await sendEmailOTP(user.email, otp);
+      console.log(`📧 Signup OTP sent to: ${user.email} | OTP: ${otp}`);
       return res.status(200).json({ 
         requiresOTP: true, 
         authType: "email", 
@@ -186,7 +187,7 @@ router.post('/login', async (req, res) => {
     if (isSouthIndia(user.location)) {
       // South India — Email OTP (primary)
       await sendEmailOTP(user.email, otp);
-      console.log(`📧 OTP sent to email: ${user.email}`);
+      console.log(`📧 OTP sent to email: ${user.email} | OTP: ${otp}`);
       
       return res.status(200).json({ 
         requiresOTP: true, 
@@ -197,7 +198,7 @@ router.post('/login', async (req, res) => {
     } else {
       // Other regions — try SMS, but ALWAYS send email as well
       await sendEmailOTP(user.email, otp); // Always send email
-      console.log(`📧 OTP also sent to email: ${user.email}`);
+      console.log(`📧 OTP also sent to email: ${user.email} | OTP: ${otp}`);
 
       if (user.phone) {
         const formattedPhone = user.phone.startsWith('+') ? user.phone : `+91${user.phone}`;
