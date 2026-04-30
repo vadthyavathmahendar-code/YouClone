@@ -13,10 +13,10 @@ require('dotenv').config();
 const sendEmailOTP = async (toEmail, otp) => {
   try {
     const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',   // explicit host forces IPv4 resolution
-      port: 465,
-      secure: true,             // SSL on port 465
-      family: 4,                // force IPv4 — fixes Render ENETUNREACH IPv6 error
+      host: 'smtp.gmail.com',
+      port: 587,          // port 587 + STARTTLS works on Render free tier
+      secure: false,      // false = STARTTLS (not SSL)
+      family: 4,          // force IPv4
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -31,7 +31,7 @@ const sendEmailOTP = async (toEmail, otp) => {
       html: `
         <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0f0f0f;color:#fff;border-radius:12px;overflow:hidden;">
           <div style="background:#dc2626;padding:24px;text-align:center;">
-            <h2 style="margin:0;font-size:22px;font-weight:900;letter-spacing:-0.5px;">YouClone</h2>
+            <h2 style="margin:0;font-size:22px;font-weight:900;">YouClone</h2>
             <p style="margin:4px 0 0;opacity:0.8;font-size:12px;text-transform:uppercase;letter-spacing:2px;">Access Verification</p>
           </div>
           <div style="padding:32px;text-align:center;">
