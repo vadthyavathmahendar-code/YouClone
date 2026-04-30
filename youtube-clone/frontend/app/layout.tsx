@@ -31,16 +31,21 @@ export default function RootLayout({
         // Try multiple IP geolocation APIs for reliability
         let region = '';
         try {
-          const r1 = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) });
+          const ctrl1 = new AbortController();
+          const t1 = setTimeout(() => ctrl1.abort(), 3000);
+          const r1 = await fetch('https://ipapi.co/json/', { signal: ctrl1.signal });
+          clearTimeout(t1);
           const d1 = await r1.json();
           region = d1.region || d1.region_name || '';
         } catch {
           try {
-            const r2 = await fetch('https://ip-api.com/json/?fields=regionName', { signal: AbortSignal.timeout(3000) });
+            const ctrl2 = new AbortController();
+            const t2 = setTimeout(() => ctrl2.abort(), 3000);
+            const r2 = await fetch('https://ip-api.com/json/?fields=regionName', { signal: ctrl2.signal });
+            clearTimeout(t2);
             const d2 = await r2.json();
             region = d2.regionName || '';
           } catch {
-            // Use saved location from localStorage as last fallback
             region = localStorage.getItem('userLocation') || '';
           }
         }

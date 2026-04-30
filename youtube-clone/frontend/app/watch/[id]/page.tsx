@@ -143,9 +143,11 @@ useEffect(() => {
           setGesturePulse("⏸");
         }
       } else if (taps === 2) {
-        // Double tap — seek ±10s based on side
+        // Double tap — seek ±10s based on side, only if duration is valid
+        const dur = videoElement.duration;
+        if (!isFinite(dur) || isNaN(dur)) return; // video not ready yet
         if (isRight) {
-          videoElement.currentTime = Math.min(videoElement.duration, videoElement.currentTime + 10);
+          videoElement.currentTime = Math.min(dur, videoElement.currentTime + 10);
           setGesturePulse("⏩ +10s");
         } else if (isLeft) {
           videoElement.currentTime = Math.max(0, videoElement.currentTime - 10);
