@@ -71,7 +71,7 @@ export default function ProfilePage() {
       const res = await fetch(`${API_URL}/api/auth/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user.email, ...formData })
+        body: JSON.stringify({ ...formData, email: user.email })
       });
       if (res.ok) {
         const updated = await res.json();
