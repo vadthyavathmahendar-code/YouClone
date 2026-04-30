@@ -23,11 +23,15 @@ const planPerks = {
 };
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp-relay.brevo.com',
+  port: 2525,
+  secure: false,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
+    user: process.env.BREVO_SMTP_USER,
+    pass: process.env.BREVO_SMTP_PASS,
+  },
+  tls: { rejectUnauthorized: false },
+  pool: true,
 });
 
 // 1. CREATE RAZORPAY ORDER
