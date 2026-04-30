@@ -9,20 +9,19 @@ require('dotenv').config();
 
 // --- 1. COMMUNICATION HELPERS ---
 
-// Reusable transporter — created once, not on every request
+// Reusable transporter — Brevo SMTP (works on Render free tier)
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
+  host: 'smtp-relay.brevo.com',
   port: 587,
   secure: false,
-  family: 4,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.BREVO_SMTP_USER,   // your Brevo login email
+    pass: process.env.BREVO_SMTP_PASS,   // Brevo SMTP key (not account password)
   },
   tls: { rejectUnauthorized: false },
   pool: true,
   maxConnections: 3,
-  connectionTimeout: 10000,  // 10 seconds
+  connectionTimeout: 10000,
   greetingTimeout: 10000,
   socketTimeout: 15000,
 });
