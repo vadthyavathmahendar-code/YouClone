@@ -4,426 +4,448 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit3, Save, MapPin, Zap, LogOut, ShieldCheck, Mail, History, Download, PlayCircle, Settings, Camera } from 'lucide-react';
+import {
+  MapPin, Zap, LogOut, History, Download,
+  PlayCircle, Camera, Check, X, Crown, Edit2
+} from 'lucide-react';
+
+const PLAN_COLORS: Record<string, string> = {
+  Gold:   'bg-yellow-400 text-black',
+  Silver: 'bg-slate-300 text-black',
+  Bronze: 'bg-orange-400 text-black',
+  Free:   'bg-gray-200 text-gray-700 dark:bg-white/10 dark:text-gray-300',
+};
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    handle: '',
-    description: '',
-    location: '',
-    email: ''
-  });
-  
+  const [user, setUser]         = useState<any>(null);
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
+  const [saved, setSaved]       = useState(false);
   const [activeTab, setActiveTab] = useState('home');
+  const [editMode, setEditMode] = useState(false);
   const router = useRouter();
 
-useEffect(() => {
-  const fetchProfile = async () => {
-    const email = localStorage.getItem('userEmail');
-    const token = localStorage.getItem('token');
+  const [formData, setFormData] = useState({
+    name: '', handle: '', description: '', location: '', email: ''
+  });
 
-    console.log("🔍 Profile Page - Email:", email, "Token:", token ? "exists" : "missing");
-
-    // 🛑 GUARD: Redirect if no session exists
-    if (!token || !email || email === "null" || email === "undefined") {
-      console.warn("⚠️ No valid session, redirecting to login");
-      // Clear any stale data before redirecting
-      localStorage.removeItem("token");
-      localStorage.removeItem("userEmail");
-      router.push('/login');
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_URL}/api/auth/profile?email=${encodeURIComponent(email)}`);
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        console.error("Profile fetch failed:", res.status, errorData);
-        
-        // If 404, user doesn't exist - redirect to signup
-        if (res.status === 404) {
-          console.warn("⚠️ User not found, redirecting to signup");
-          localStorage.clear();
-          router.push('/signup');
-          return;
-        }
-        
-        throw new Error(errorData.error || "Profile node unreachable");
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const email = localStorage.getItem('userEmail');
+      const token = localStorage.getItem('token');
+      if (!token || !email || email === 'null' || email === 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userEmail');
+        router.push('/login');
+        return;
       }
-
-      const userData = await res.json();
-      setUser(userData);
-      
-      // Task 4: Sync local storage with fresh DB data
-      localStorage.setItem('userPlan', userData.plan);
-      localStorage.setItem('userLocation', userData.location);
-
-      setFormData({ 
-        name: userData.name || 'User Node', 
-        handle: userData.handle || userData.email.split('@')[0],
-        description: userData.description || '',
-        location: userData.location || 'Secunderabad',
-        email: userData.email
-      });
-    } catch (err) {
-      console.error("Profile Load Error:", err);
-      // Fallback: If DB is down, use whatever is in localStorage
-      setUser({ name: localStorage.getItem('userName'), plan: localStorage.getItem('userPlan') });
-    } finally {
-      // 🚀 CRITICAL: Ensure loading is set to false immediately
-      setLoading(false);
-    }
-  };
-
-  fetchProfile();
-}, [router]);
+      try {
+        const res = await fetch(`${API_URL}/api/auth/profile?email=${encodeURIComponent(email)}`);
+        if (!res.ok) {
+          if (res.status === 404) { localStorage.clear(); router.push('/signup'); return; }
+          throw new Error('Profile fetch failed');
+        }
+        const userData = await res.json();
+        setUser(userData);
+        localStorage.setItem('userPlan', userData.plan);
+        localStorage.setItem('userLocation', userData.location);
+        setFormData({
+          name:        userData.name        || '',
+          handle:      userData.handle      || userData.email?.split('@')[0] || '',
+          description: userData.description || '',
+          location:    userData.location    || '',
+          email:       userData.email       || '',
+        });
+      } catch (err) {
+        setUser({ name: localStorage.getItem('userName'), plan: localStorage.getItem('userPlan') });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [router]);
 
   const handleSave = async () => {
+    setSaving(true);
     try {
       const res = await fetch(`${API_URL}/api/auth/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // @ts-ignore
-body: JSON.stringify({ email: user.email, ...formData })
+        body: JSON.stringify({ email: user.email, ...formData })
       });
-
       if (res.ok) {
-        const updatedUser = await res.json();
-        setUser(updatedUser); 
+        const updated = await res.json();
+        setUser(updated);
         localStorage.setItem('userName', formData.name);
         localStorage.setItem('userLocation', formData.location);
-        alert("✅ Successfully updated!");
-        setActiveTab('home'); 
+        setSaved(true);
+        setEditMode(false);
+        setTimeout(() => setSaved(false), 2000);
       }
-    } catch (err) { alert("❌ Sync Error"); }
+    } catch { /* silent */ }
+    finally { setSaving(false); }
   };
 
-  const handleLogout = () => {
-    localStorage.clear(); 
-    router.push('/');
-  };
+  const handleLogout = () => { localStorage.clear(); router.push('/'); };
 
-  if (loading) {
-    return (
-      <div className="h-[calc(100vh-64px)] bg-white dark:bg-[#050505] flex flex-col items-center justify-center transition-colors duration-700">
-        <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(220,38,38,0.5)]" />
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="h-[calc(100vh-56px)] bg-white dark:bg-[#050505] flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  const tabs = [
+    { id: 'home',     label: 'Home' },
+    { id: 'downloads', label: 'Downloads' },
+    { id: 'history',  label: 'History' },
+    { id: 'about',    label: 'About' },
+  ];
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-gray-50 dark:bg-[#050505] text-black dark:text-white selection:bg-red-500/30 pb-20 transition-colors duration-700">
-      
-      {/* 1. MAIN CHANNEL BANNER */}
-      <div className="w-full h-48 md:h-64 lg:h-80 relative bg-gray-200 dark:bg-gray-900 overflow-hidden group transition-colors duration-700">
-        <img 
-          src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop" 
-          alt="Channel Banner" 
-          className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-all duration-700"
+    <div className="min-h-screen bg-white dark:bg-[#0f0f0f] text-gray-900 dark:text-white">
+
+      {/* ── BANNER ── */}
+      <div className="relative w-full h-32 sm:h-44 md:h-56 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-[#1a1a1a] dark:to-[#2a2a2a] overflow-hidden group">
+        <img
+          src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop"
+          alt="Banner"
+          className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-50 dark:from-[#050505] via-transparent to-transparent transition-colors duration-700" />
-        
-        {/* Banner Edit Overlay */}
-        <div className="absolute top-4 right-4 bg-white/80 dark:bg-black/60 hover:bg-white dark:hover:bg-black/80 backdrop-blur-md p-2.5 rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition-all shadow-lg border border-gray-200 dark:border-white/10">
-          <Camera size={20} className="text-black dark:text-white" />
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-[#0f0f0f] via-transparent to-transparent" />
       </div>
 
-      <div className="max-w-[1080px] mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* 2. CHANNEL INFO HEADER */}
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mt-[-40px] md:mt-6 relative z-10">
-          
+      {/* ── CHANNEL HEADER ── */}
+      <div className="max-w-[1096px] mx-auto px-4 sm:px-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 -mt-10 sm:-mt-14 relative z-10 pb-4 border-b border-gray-200 dark:border-white/10">
+
           {/* Avatar */}
-          <div className="relative group cursor-pointer">
-            <div className="w-24 h-24 md:w-36 md:h-36 rounded-full bg-gradient-to-br from-red-600 to-purple-800 flex items-center justify-center text-4xl md:text-6xl font-bold text-white shadow-2xl border-4 border-gray-50 dark:border-[#050505] flex-shrink-0 transition-colors duration-700 overflow-hidden">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Camera size={28} className="text-white" />
-              </div>
+          <div className="relative flex-shrink-0">
+            <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-full bg-gradient-to-br from-red-500 to-purple-700 flex items-center justify-center text-3xl sm:text-5xl font-black text-white border-4 border-white dark:border-[#0f0f0f] shadow-xl">
+              {user?.name?.[0]?.toUpperCase() || 'U'}
             </div>
-          </div>
-
-          {/* Details */}
-          <div className="flex-1 pt-2 md:pt-0">
-            <h1 className="text-2xl md:text-4xl font-black tracking-tight mb-1">{user?.name}</h1>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 dark:text-[#aaaaaa] mb-3 transition-colors duration-700">
-              <span className="font-bold">@{formData.handle || user?.email?.split('@')[0] || 'loading...'}</span>
-              <span className="opacity-50">•</span>
-              <span className="flex items-center gap-1 text-red-600 dark:text-red-500 font-bold"><MapPin size={14}/> {user?.location} Node</span>
-              <span className="opacity-50">•</span>
-              <span className="flex items-center gap-1 font-bold bg-black/5 dark:bg-white/10 px-2 py-0.5 rounded-md border border-gray-200 dark:border-transparent"><Zap size={12} className="text-yellow-600 dark:text-yellow-500"/> {user?.plan} Tier</span>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-[#aaaaaa] max-w-2xl line-clamp-2 transition-colors duration-700">
-              {formData.description || `Welcome to the official YouClone channel for ${user?.name}. This node is configured for high-speed streaming, offline caching, and encrypted VoIP communication.`}
-            </p>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
-            <button 
-              onClick={() => setActiveTab('settings')}
-              className="flex-1 md:flex-none bg-gray-200 hover:bg-gray-300 dark:bg-white/10 dark:hover:bg-white/20 text-black dark:text-white px-5 py-2.5 rounded-full font-bold text-sm transition-all shadow-sm"
-            >
-              Customize Channel
+            <button className="absolute bottom-1 right-1 w-8 h-8 bg-gray-900 dark:bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+              <Camera size={14} className="text-white dark:text-gray-900" />
             </button>
-            <Link 
-              href="/upgrade"
-              className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-full font-bold text-sm transition-all text-center shadow-lg shadow-blue-600/20"
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0 pb-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight truncate">{user?.name}</h1>
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${PLAN_COLORS[user?.plan || 'Free']}`}>
+                {user?.plan === 'Gold' && <Crown size={10} className="inline mr-1" />}
+                {user?.plan || 'Free'}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <span className="font-medium">@{formData.handle || user?.email?.split('@')[0]}</span>
+              {user?.location && (
+                <span className="flex items-center gap-1">
+                  <MapPin size={12} /> {user.location}
+                </span>
+              )}
+              <span className="flex items-center gap-1">
+                <Zap size={12} className="text-yellow-500" />
+                {user?.dailyDownloadCount || 0} downloads today
+              </span>
+            </div>
+            {formData.description && (
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 line-clamp-2 max-w-2xl">{formData.description}</p>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 flex-shrink-0 pb-1">
+            <button
+              onClick={() => setEditMode(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/20 text-gray-900 dark:text-white rounded-full text-sm font-semibold transition-all"
             >
-              Upgrade Plan
+              <Edit2 size={15} /> Customize
+            </button>
+            <Link
+              href="/upgrade"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold hover:opacity-90 transition-all"
+            >
+              Upgrade
             </Link>
           </div>
         </div>
 
-        {/* 3. YOUTUBE STYLE NAVIGATION TABS */}
-        <div className="flex gap-8 mt-10 border-b border-gray-200 dark:border-white/10 text-sm font-bold overflow-x-auto hide-scrollbar transition-colors duration-700">
-          {['home', 'offline', 'history', 'settings'].map((tab) => (
+        {/* ── TABS ── */}
+        <div className="flex gap-1 mt-1 overflow-x-auto no-scrollbar">
+          {tabs.map(tab => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-4 uppercase tracking-wider relative whitespace-nowrap transition-colors duration-300 ${activeTab === tab ? 'text-black dark:text-white' : 'text-gray-500 hover:text-black dark:text-[#aaaaaa] dark:hover:text-white'}`}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`relative px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
+                activeTab === tab.id
+                  ? 'text-gray-900 dark:text-white'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
             >
-              {tab === 'home' ? 'Home' : tab === 'offline' ? 'Downloads' : tab === 'history' ? 'Watch History' : tab === 'settings' ? 'Customization' : ''}
-              {activeTab === tab && (
-                <motion.div layoutId="underline" className="absolute bottom-0 left-0 w-full h-[3px] bg-black dark:bg-white rounded-t-full transition-colors duration-700" />
+              {tab.label}
+              {activeTab === tab.id && (
+                <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-900 dark:bg-white rounded-full" />
               )}
             </button>
           ))}
         </div>
+      </div>
 
-        {/* 4. TAB CONTENT AREA */}
-        <div className="py-8 min-h-[400px]">
-          <AnimatePresence mode="wait">
-            
-            {/* HOME TAB */}
-            {activeTab === 'home' && (
-              <motion.div key="home" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-12">
-                <div className="flex flex-col md:flex-row gap-6 border-b border-gray-200 dark:border-white/10 pb-10 transition-colors duration-700">
-                  <div className="w-full md:w-[420px] aspect-video bg-white dark:bg-[#111] rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group border border-gray-200 dark:border-white/5 shadow-xl dark:shadow-none transition-colors duration-700">
-                     <ShieldCheck size={48} className="text-gray-400 dark:text-[#aaaaaa] mb-3 group-hover:scale-110 transition-transform duration-500" />
-                     <p className="text-sm text-gray-500 dark:text-[#aaaaaa] font-bold tracking-widest uppercase">Node Diagnostics</p>
-                     <div className="absolute bottom-3 left-3 bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase backdrop-blur-md">Secure Connection</div>
-                  </div>
-                  <div className="flex flex-col justify-center max-w-xl">
-                    <h3 className="text-2xl font-black mb-3">YouClone System Status: Optimal</h3>
-                    <p className="text-sm text-gray-600 dark:text-[#aaaaaa] mb-6 leading-relaxed transition-colors duration-700">
-                      Your current plan is <span className="text-black dark:text-white font-bold">{user?.plan}</span>. 
-                      You have used <span className="text-red-600 font-bold">{user?.dailyDownloadCount || 0}</span> daily downloads. 
-                      {user?.plan === 'Free' ? " Upgrade to Gold for unlimited premium access." : " Enjoy your premium access!"}
-                    </p>
-                    <div className="flex gap-3">
-                      <Link href="/home" className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-full text-sm font-bold transition-colors shadow-lg shadow-red-600/20">
-                        <PlayCircle size={18} /> Start Streaming
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+      {/* ── EDIT MODAL ── */}
+      <AnimatePresence>
+        {editMode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setEditMode(false); }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-[#212121] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
+            >
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Edit channel</h2>
+                <button onClick={() => setEditMode(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
+                  <X size={20} className="text-gray-600 dark:text-gray-400" />
+                </button>
+              </div>
 
+              {/* Modal body */}
+              <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+
+                {/* Name */}
                 <div>
-                  <h3 className="text-xl font-black mb-6 flex items-center gap-2">Recent Downloads <Download size={20} className="text-gray-400 dark:text-[#aaaaaa]" /></h3>
-                  {!user?.downloads?.length ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-center border-2 border-dashed border-gray-200 dark:border-white/5 rounded-3xl">
-                      <Download size={32} className="text-gray-300 dark:text-[#333] mb-3" />
-                      <p className="text-sm text-gray-400 dark:text-[#555] font-bold">No downloads yet</p>
-                      <Link href="/home" className="text-blue-500 text-xs mt-2 hover:underline font-bold">Browse videos →</Link>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                      {user.downloads.slice(0, 4).map((dl: any, i: number) => (
-                        <Link href={`/watch/${dl.videoId}`} key={i} className="flex flex-col gap-3 group cursor-pointer">
-                          <div className="relative aspect-video bg-gray-200 dark:bg-[#111] rounded-2xl overflow-hidden border border-transparent dark:border-white/5">
-                            {dl.thumbnail ? (
-                              <img src={dl.thumbnail} alt={dl.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <PlayCircle size={32} className="text-gray-400 dark:text-[#555]" />
-                              </div>
-                            )}
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 backdrop-blur-sm transition-all duration-300">
-                              <PlayCircle size={40} className="text-white drop-shadow-lg" />
-                            </div>
-                            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-2 py-1 rounded-md font-bold uppercase">Downloaded</div>
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-sm line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{dl.title}</h4>
-                            <p className="text-xs text-gray-500 dark:text-[#aaaaaa] mt-1">{new Date(dl.downloadedAt).toLocaleDateString()}</p>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                  {user?.downloads?.length > 4 && (
-                    <button onClick={() => setActiveTab('offline')} className="mt-4 text-sm text-blue-500 hover:underline font-bold">
-                      View all {user.downloads.length} downloads →
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">Name</label>
+                  <input
+                    className="w-full bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Your name"
+                  />
+                </div>
+
+                {/* Handle */}
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">Handle</label>
+                  <div className="flex">
+                    <span className="bg-gray-100 dark:bg-[#333] border border-r-0 border-gray-200 dark:border-white/10 text-gray-500 rounded-l-xl px-3 py-2.5 text-sm flex items-center">@</span>
+                    <input
+                      className="flex-1 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-r-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                      value={formData.handle}
+                      onChange={e => setFormData({ ...formData, handle: e.target.value })}
+                      placeholder="yourhandle"
+                    />
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">Description</label>
+                  <textarea
+                    rows={4}
+                    className="w-full bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                    value={formData.description}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Tell viewers about your channel..."
+                  />
+                </div>
+
+                {/* Location */}
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">Location</label>
+                  <input
+                    className="w-full bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                    value={formData.location}
+                    onChange={e => setFormData({ ...formData, location: e.target.value })}
+                    placeholder="City, State"
+                  />
+                </div>
+
+                {/* Email (read-only) */}
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 block">Email</label>
+                  <input
+                    disabled
+                    className="w-full bg-gray-100 dark:bg-[#333] border border-gray-200 dark:border-white/5 text-gray-400 rounded-xl px-4 py-2.5 text-sm cursor-not-allowed"
+                    value={formData.email}
+                  />
+                </div>
+              </div>
+
+              {/* Modal footer */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-white/10">
+                <button onClick={handleLogout} className="text-red-500 hover:text-red-600 text-sm font-semibold flex items-center gap-1.5 transition-colors">
+                  <LogOut size={15} /> Sign out
+                </button>
+                <div className="flex gap-3">
+                  <button onClick={() => setEditMode(false)} className="px-4 py-2 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-full text-sm font-semibold transition-all"
+                  >
+                    {saving ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : saved ? (
+                      <><Check size={15} /> Saved!</>
+                    ) : 'Save'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── TAB CONTENT ── */}
+      <div className="max-w-[1096px] mx-auto px-4 sm:px-6 py-6">
+        <AnimatePresence mode="wait">
+
+          {/* HOME */}
+          {activeTab === 'home' && (
+            <motion.div key="home" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-10">
+
+              {/* Stats row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[
+                  { label: 'Plan',       value: user?.plan || 'Free' },
+                  { label: 'Downloads',  value: user?.downloads?.length || 0 },
+                  { label: 'Today',      value: `${user?.dailyDownloadCount || 0} dl` },
+                  { label: 'Member since', value: user?.joinedAt ? new Date(user.joinedAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '—' },
+                ].map(s => (
+                  <div key={s.label} className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/5 rounded-2xl p-4">
+                    <p className="text-xs text-gray-500 dark:text-gray-500 font-medium uppercase tracking-wider mb-1">{s.label}</p>
+                    <p className="text-xl font-black text-gray-900 dark:text-white">{s.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Recent downloads */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-bold text-gray-900 dark:text-white">Recent Downloads</h2>
+                  {(user?.downloads?.length || 0) > 4 && (
+                    <button onClick={() => setActiveTab('downloads')} className="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                      View all →
                     </button>
                   )}
                 </div>
-              </motion.div>
-            )}
-
-            {/* 🚀 THE FIXED SETTINGS TAB (YouTube Studio Style) */}
-            {activeTab === 'settings' && (
-              <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="max-w-4xl">
-                
-                <div className="mb-8">
-                  <h3 className="text-2xl font-black mb-2 text-black dark:text-white transition-colors duration-700">Basic info</h3>
-                  <p className="text-sm text-gray-500 dark:text-[#aaaaaa] transition-colors duration-700">Choose your channel name, handle, and tell viewers about your content.</p>
-                </div>
-
-                <div className="space-y-8 max-w-2xl">
-                  {/* Name Input */}
-                  <div>
-                    <label className="text-sm font-bold mb-2 block text-black dark:text-white">Name</label>
-                    <p className="text-xs text-gray-500 dark:text-[#aaaaaa] mb-3">Choose a channel name that represents you and your content. Changes made here will be reflected across YouClone.</p>
-                    <input 
-                      className="w-full bg-white dark:bg-transparent border border-gray-300 dark:border-[#3f3f3f] text-black dark:text-white rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 transition-colors"
-                      value={formData.name || ''} 
-                      onChange={(e) => setFormData({...formData, name: e.target.value})} 
-                    />
-                  </div>
-
-                  {/* Handle Input */}
-                  <div>
-                    <label className="text-sm font-bold mb-2 block text-black dark:text-white">Handle</label>
-                    <p className="text-xs text-gray-500 dark:text-[#aaaaaa] mb-3">Choose your unique handle by adding letters and numbers. You can change your handle back within 14 days.</p>
-                    <div className="flex">
-                      <span className="bg-gray-100 dark:bg-[#111] border border-r-0 border-gray-300 dark:border-[#3f3f3f] text-gray-500 rounded-l-lg px-4 py-3 flex items-center transition-colors">@</span>
-                      <input 
-                        className="w-full bg-white dark:bg-transparent border border-gray-300 dark:border-[#3f3f3f] text-black dark:text-white rounded-r-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
-                        value={formData.handle || ''} 
-                        onChange={(e) => setFormData({...formData, handle: e.target.value})} 
-                      />
-                    </div>
-                  </div>
-
-                  {/* Description Input */}
-                  <div>
-                    <label className="text-sm font-bold mb-2 block text-black dark:text-white">Description</label>
-                    <p className="text-xs text-gray-500 dark:text-[#aaaaaa] mb-3">Tell viewers about your channel. Your description will show up in the About section of your channel and search results.</p>
-                    <textarea 
-                      rows={5} 
-                      className="w-full bg-white dark:bg-transparent border border-gray-300 dark:border-[#3f3f3f] text-black dark:text-white rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors resize-none"
-                      value={formData.description || ''} 
-                      onChange={(e) => setFormData({...formData, description: e.target.value})} 
-                    />
-                  </div>
-
-                  {/* Node Region Input */}
-                  <div>
-                    <label className="text-sm font-bold mb-2 block text-black dark:text-white">Transmission Region</label>
-                    <input 
-                      className="w-full bg-white dark:bg-transparent border border-gray-300 dark:border-[#3f3f3f] text-black dark:text-white rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
-                      value={formData.location || ''} 
-                      onChange={(e) => setFormData({...formData, location: e.target.value})} 
-                    />
-                  </div>
-
-                  {/* Contact Info (Read Only) */}
-                  <div>
-                    <label className="text-sm font-bold mb-2 block text-black dark:text-white">Contact info</label>
-                    <p className="text-xs text-gray-500 dark:text-[#aaaaaa] mb-3">Let people know how to contact you with business inquiries.</p>
-                    <input 
-                      disabled 
-                      className="w-full bg-gray-100 dark:bg-[#111] border border-gray-200 dark:border-[#222] text-gray-500 dark:text-gray-400 rounded-lg px-4 py-3 cursor-not-allowed transition-colors"
-                      value={formData.email || 'user@youclone.node'} 
-                    />
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="pt-6 border-t border-gray-200 dark:border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <button onClick={handleLogout} className="text-red-600 hover:text-red-500 font-bold text-sm transition-colors flex items-center gap-2">
-                      <LogOut size={16} /> Logout
-                    </button>
-                    <div className="flex gap-4 w-full sm:w-auto">
-                      <button onClick={() => setActiveTab('home')} className="font-bold text-sm text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors px-4 py-2">
-                        Cancel
-                      </button>
-                      <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-full font-bold text-sm transition-colors shadow-lg">
-                        save changes
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-              </motion.div>
-            )}
-
-            {/* REDIRECT TABS */}
-            {activeTab === 'history' && (
-              <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 transition-colors duration-700">
-                <History size={48} className="text-gray-400 dark:text-[#aaaaaa] mb-4" />
-                <h3 className="text-xl font-black mb-2 text-black dark:text-white">Watch History is tracked separately</h3>
-                <Link href="/history" className="text-blue-600 dark:text-blue-500 hover:underline font-bold tracking-wide">Go to History Page →</Link>
-              </motion.div>
-            )}
-
-            {activeTab === 'offline' && (
-              <motion.div key="offline" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-black flex items-center gap-2">
-                    <Download size={20} className="text-red-500" /> Downloads
-                    <span className="text-xs font-bold bg-gray-100 dark:bg-white/10 px-2 py-1 rounded-full ml-1">
-                      {user?.downloads?.length || 0}
-                    </span>
-                  </h3>
-                  <div className="text-xs text-gray-500 dark:text-[#aaaaaa] font-bold">
-                    {user?.plan === 'Free'
-                      ? `${user?.dailyDownloadCount || 0}/1 today · `
-                      : user?.plan === 'Silver'
-                      ? `${user?.dailyDownloadCount || 0}/5 today · `
-                      : `${user?.dailyDownloadCount || 0} today · `}
-                    <Link href="/upgrade" className="text-blue-500 hover:underline">
-                      {user?.plan === 'Gold' ? 'Gold Plan ✓' : 'Upgrade for more'}
-                    </Link>
-                  </div>
-                </div>
-
                 {!user?.downloads?.length ? (
-                  <div className="flex flex-col items-center justify-center py-24 text-center">
-                    <Download size={48} className="text-gray-300 dark:text-[#333] mb-4" />
-                    <h4 className="text-lg font-black text-gray-400 dark:text-[#555] mb-2">No downloads yet</h4>
-                    <p className="text-sm text-gray-400 dark:text-[#555] mb-6">Videos you download will appear here.</p>
-                    <Link href="/home" className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-full font-bold text-sm transition-colors">
-                      Browse Videos
-                    </Link>
+                  <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed border-gray-200 dark:border-white/5 rounded-2xl text-center">
+                    <Download size={36} className="text-gray-300 dark:text-gray-700 mb-3" />
+                    <p className="text-sm font-semibold text-gray-400 dark:text-gray-600">No downloads yet</p>
+                    <Link href="/home" className="mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline">Browse videos</Link>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                    {user.downloads.map((dl: any, i: number) => (
-                      <Link href={`/watch/${dl.videoId}`} key={i} className="flex flex-col gap-3 group cursor-pointer">
-                        <div className="relative aspect-video bg-gray-200 dark:bg-[#111] rounded-2xl overflow-hidden border border-transparent dark:border-white/5">
-                          {dl.thumbnail ? (
-                            <img src={dl.thumbnail} alt={dl.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <PlayCircle size={32} className="text-gray-400 dark:text-[#555]" />
-                            </div>
-                          )}
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 backdrop-blur-sm transition-all duration-300">
-                            <PlayCircle size={40} className="text-white drop-shadow-lg" />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {user.downloads.slice(0, 4).map((dl: any, i: number) => (
+                      <Link href={`/watch/${dl.videoId}`} key={i} className="group">
+                        <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-100 dark:bg-white/5 mb-2">
+                          {dl.thumbnail
+                            ? <img src={dl.thumbnail} alt={dl.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            : <div className="w-full h-full flex items-center justify-center"><PlayCircle size={28} className="text-gray-400" /></div>
+                          }
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                            <PlayCircle size={36} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
-                          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-2 py-1 rounded-md font-bold uppercase">Downloaded</div>
                         </div>
-                        <div>
-                          <h4 className="font-bold text-sm line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{dl.title}</h4>
-                          <p className="text-xs text-gray-500 dark:text-[#aaaaaa] mt-1">
-                            {new Date(dl.downloadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </p>
-                        </div>
+                        <p className="text-sm font-semibold line-clamp-2 text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{dl.title}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">{new Date(dl.downloadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
                       </Link>
                     ))}
                   </div>
                 )}
-              </motion.div>
-            )}
+              </div>
+            </motion.div>
+          )}
 
-          </AnimatePresence>
-        </div>
+          {/* DOWNLOADS */}
+          {activeTab === 'downloads' && (
+            <motion.div key="downloads" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-base font-bold">Downloads <span className="text-gray-400 dark:text-gray-500 font-normal text-sm ml-1">({user?.downloads?.length || 0})</span></h2>
+                <span className="text-xs text-gray-500 dark:text-gray-500">
+                  {user?.plan === 'Free' ? '1/day limit' : user?.plan === 'Silver' ? '5/day limit' : 'Unlimited'}
+                  {' · '}
+                  <Link href="/upgrade" className="text-blue-600 dark:text-blue-400 hover:underline">{user?.plan === 'Gold' ? 'Gold ✓' : 'Upgrade'}</Link>
+                </span>
+              </div>
+              {!user?.downloads?.length ? (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <Download size={48} className="text-gray-200 dark:text-gray-800 mb-4" />
+                  <p className="font-semibold text-gray-400 dark:text-gray-600 mb-1">No downloads yet</p>
+                  <Link href="/home" className="mt-3 px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-full text-sm font-semibold transition-colors">Browse Videos</Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {user.downloads.map((dl: any, i: number) => (
+                    <Link href={`/watch/${dl.videoId}`} key={i} className="group">
+                      <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-100 dark:bg-white/5 mb-2">
+                        {dl.thumbnail
+                          ? <img src={dl.thumbnail} alt={dl.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          : <div className="w-full h-full flex items-center justify-center"><PlayCircle size={28} className="text-gray-400" /></div>
+                        }
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                          <PlayCircle size={36} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+                      <p className="text-sm font-semibold line-clamp-2 text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{dl.title}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">{new Date(dl.downloadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* HISTORY */}
+          {activeTab === 'history' && (
+            <motion.div key="history" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center py-20 text-center">
+              <History size={48} className="text-gray-200 dark:text-gray-800 mb-4" />
+              <p className="font-semibold text-gray-500 dark:text-gray-500 mb-3">Watch history is on a separate page</p>
+              <Link href="/history" className="px-5 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold hover:opacity-90 transition-all">
+                Go to History →
+              </Link>
+            </motion.div>
+          )}
+
+          {/* ABOUT */}
+          {activeTab === 'about' && (
+            <motion.div key="about" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-2xl space-y-6">
+              <div className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/5 rounded-2xl divide-y divide-gray-200 dark:divide-white/5">
+                {[
+                  { label: 'Name',        value: user?.name },
+                  { label: 'Handle',      value: `@${formData.handle || user?.email?.split('@')[0]}` },
+                  { label: 'Email',       value: user?.email },
+                  { label: 'Location',    value: user?.location || '—' },
+                  { label: 'Plan',        value: user?.plan || 'Free' },
+                  { label: 'Member since', value: user?.joinedAt ? new Date(user.joinedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
+                  { label: 'Description', value: formData.description || 'No description added yet.' },
+                ].map(row => (
+                  <div key={row.label} className="flex gap-4 px-5 py-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-500 w-32 flex-shrink-0 font-medium">{row.label}</span>
+                    <span className="text-sm text-gray-900 dark:text-white">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setEditMode(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/20 text-gray-900 dark:text-white rounded-full text-sm font-semibold transition-all"
+              >
+                <Edit2 size={15} /> Edit channel info
+              </button>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
       </div>
     </div>
   );

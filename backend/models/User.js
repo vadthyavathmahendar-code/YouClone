@@ -14,8 +14,10 @@ const userSchema = new mongoose.Schema({
   },
   
   // Task 4: Location-Based Logic
-location: { type: String, default: "Global Node" }, // Or just default: ""
-state: { type: String, default: "Unknown" },
+  location: { type: String, default: "Global Node" },
+  state: { type: String, default: "Unknown" },
+  handle: { type: String, default: "" },
+  description: { type: String, default: "" },
   // Task 2: Strict Download Limits
   dailyDownloadCount: { type: Number, default: 0 },
   lastDownloadDate: { 

@@ -285,15 +285,16 @@ router.get('/profile', async (req, res) => {
   }
 });
 
-// UPDATE: Calibrate Location/Name
+// UPDATE: Calibrate Location/Name/Handle/Description
 router.post('/update', async (req, res) => {
   try {
-    const { email, name, location } = req.body;
+    const { email, name, location, handle, description } = req.body;
     const user = await User.findOneAndUpdate(
       { email },
-      { name, location },
-      { returnDocument: 'after' }
+      { name, location, handle, description },
+      { new: true }
     ).select('-password');
+    if (!user) return res.status(404).json({ error: "User not found" });
     return res.json(user);
   } catch (err) {
     return res.status(500).json({ error: err.message });
