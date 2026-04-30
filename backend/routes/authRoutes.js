@@ -13,53 +13,45 @@ require('dotenv').config();
 const sendEmailOTP = async (toEmail, otp) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',   // explicit host forces IPv4 resolution
+      port: 465,
+      secure: true,             // SSL on port 465
+      family: 4,                // force IPv4 — fixes Render ENETUNREACH IPv6 error
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // MUST be the 16-character App Password
+        pass: process.env.EMAIL_PASS,
       },
+      tls: { rejectUnauthorized: false }
     });
 
-    const mailOptions = {
-      from: `"YouClone Security Node" <${process.env.EMAIL_USER}>`,
+    await transporter.sendMail({
+      from: `"YouClone Security" <${process.env.EMAIL_USER}>`,
       to: toEmail,
-      subject: 'Your YouClone Access Code',
+      subject: 'Your YouClone OTP Code',
       html: `
-        <div style="background-color: #0f0f0f; color: white; padding: 40px; text-align: center;">
-          <h2 style="color: #dc2626;">Node Access Authorization</h2>
-          <div style="font-size: 32px; background-color: #111; padding: 20px; display: inline-block;">
-            ${otp}
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0f0f0f;color:#fff;border-radius:12px;overflow:hidden;">
+          <div style="background:#dc2626;padding:24px;text-align:center;">
+            <h2 style="margin:0;font-size:22px;font-weight:900;letter-spacing:-0.5px;">YouClone</h2>
+            <p style="margin:4px 0 0;opacity:0.8;font-size:12px;text-transform:uppercase;letter-spacing:2px;">Access Verification</p>
+          </div>
+          <div style="padding:32px;text-align:center;">
+            <p style="margin:0 0 16px;font-size:15px;opacity:0.7;">Your one-time access code is:</p>
+            <div style="font-size:42px;font-weight:900;letter-spacing:12px;background:#1a1a1a;padding:20px;border-radius:8px;display:inline-block;color:#fff;">${otp}</div>
+            <p style="margin:20px 0 0;font-size:12px;opacity:0.4;">Valid for 10 minutes. Do not share this code.</p>
           </div>
         </div>
       `
-    };
-    await transporter.sendMail(mailOptions);
-    console.log(`📧 OTP Email successfully dispatched to ${toEmail}`);
+    });
+    console.log(`📧 OTP Email sent to ${toEmail}`);
   } catch (error) {
-    // 🛑 LOG the error but DON'T crash the server
     console.error("💥 Nodemailer Failure (Handled):", error.message);
   }
 };
 
-// Task 4: SMS OTP — Twilio integration
+// Task 4: SMS OTP — Twilio credentials invalid (error 20003), disabled
 const sendMobileOTP = async (toNumber, otp) => {
-  try {
-    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
-      console.warn("⚠️ Twilio credentials missing");
-      return false;
-    }
-    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-    await client.messages.create({
-      body: `[YouClone] Your OTP is: ${otp}. Valid for 10 minutes.`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: toNumber
-    });
-    console.log(`📱 SMS OTP sent to ${toNumber}`);
-    return true;
-  } catch (error) {
-    console.error("💥 Twilio Error:", error.message, "Code:", error.code);
-    return false;
-  }
+  console.warn("⚠️ SMS OTP skipped - Twilio credentials invalid. Using email OTP.");
+  return false;
 };
 
 // Task 4: Regional Logic Gate
