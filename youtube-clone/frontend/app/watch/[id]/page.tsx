@@ -20,7 +20,10 @@ export default function WatchPage() {
   const [currentTime, setCurrentTime] = useState("0:00");
   const [duration, setDuration] = useState("0:00");
   const [watchTime, setWatchTime] = useState(0);
-  const [gesturePulse, setGesturePulse] = useState<string | null>(null);
+  // Gesture state — track which side was tapped for YouTube-style ripple
+  const [gestureLeft, setGestureLeft]   = useState<string | null>(null);
+  const [gestureCenter, setGestureCenter] = useState<string | null>(null);
+  const [gestureRight, setGestureRight] = useState<string | null>(null);
   const isLimitReached = watchTime >= PLAN_LIMITS[user?.plan || 'Free'];
 
   const [commentInput, setCommentInput] = useState("");
@@ -109,7 +112,6 @@ useEffect(() => {
     }
   };
 
-  // Gesture handler using tap count tracking (reliable cross-browser)
   const handleGestures = (e: React.MouseEvent) => {
     const videoElement = videoRef.current;
     if (!videoElement || isLimitReached) return;
@@ -121,7 +123,6 @@ useEffect(() => {
     tapCountRef.current += 1;
     lastTapXRef.current = x;
 
-    // Clear any pending timer
     if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
 
     tapTimerRef.current = setTimeout(() => {
@@ -129,57 +130,54 @@ useEffect(() => {
       const tapX = lastTapXRef.current;
       tapCountRef.current = 0;
 
-      const isLeft   = tapX < width * 0.33;
-      const isRight  = tapX > width * 0.66;
+      const isLeft  = tapX < width * 0.33;
+      const isRight = tapX > width * 0.66;
+
+      const flashLeft   = (msg: string) => { setGestureLeft(msg);   setTimeout(() => setGestureLeft(null), 700); };
+      const flashCenter = (msg: string) => { setGestureCenter(msg); setTimeout(() => setGestureCenter(null), 700); };
+      const flashRight  = (msg: string) => { setGestureRight(msg);  setTimeout(() => setGestureRight(null), 700); };
 
       if (taps === 1) {
-        // Single tap anywhere — pause/resume
         if (videoElement.paused) {
           videoElement.play().then(() => setIsPlaying(true)).catch(() => {});
-          setGesturePulse("▶");
+          flashCenter('play');
         } else {
           videoElement.pause();
           setIsPlaying(false);
-          setGesturePulse("⏸");
+          flashCenter('pause');
         }
       } else if (taps === 2) {
-        // Double tap — seek ±10s based on side, only if duration is valid
         const dur = videoElement.duration;
-        if (!isFinite(dur) || isNaN(dur)) return; // video not ready yet
+        if (!isFinite(dur) || isNaN(dur)) return;
         if (isRight) {
           videoElement.currentTime = Math.min(dur, videoElement.currentTime + 10);
-          setGesturePulse("⏩ +10s");
+          flashRight('10');
         } else if (isLeft) {
           videoElement.currentTime = Math.max(0, videoElement.currentTime - 10);
-          setGesturePulse("⏪ -10s");
+          flashLeft('10');
         } else {
-          // Double tap center — pause/resume
           if (videoElement.paused) {
             videoElement.play().then(() => setIsPlaying(true)).catch(() => {});
-            setGesturePulse("▶");
+            flashCenter('play');
           } else {
             videoElement.pause();
             setIsPlaying(false);
-            setGesturePulse("⏸");
+            flashCenter('pause');
           }
         }
       } else if (taps >= 3) {
-        // Triple tap
         if (isRight) {
-          setGesturePulse("✕ Closing...");
+          flashRight('close');
           setTimeout(() => window.close(), 600);
         } else if (isLeft) {
-          setGesturePulse("💬 Comments");
+          flashLeft('comments');
           document.getElementById('comment-box')?.scrollIntoView({ behavior: 'smooth' });
         } else {
-          // Center — skip to next video
-          setGesturePulse("⏭ Next Video");
+          flashCenter('next');
           setTimeout(() => router.push('/home'), 500);
         }
       }
-
-      setTimeout(() => setGesturePulse(null), 700);
-    }, 280); // 280ms window to collect taps
+    }, 280);
   };
 const handleDownload = async () => {
   // 1. Plan-based limit check
@@ -342,20 +340,76 @@ const handlePostComment = async () => {
             preload="metadata"
           />
 
-          {gesturePulse && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40
-                            bg-black/70 backdrop-blur-sm px-8 py-4 rounded-2xl 
-                            text-white font-black text-2xl pointer-events-none
-                            animate-bounce">
-              {gesturePulse}
+          {/* ── YouTube-style gesture overlays ── */}
+
+          {/* LEFT — rewind ripple */}
+          {gestureLeft && (
+            <div className="absolute inset-y-0 left-0 w-1/3 flex items-center justify-center pointer-events-none z-40">
+              <div className="yt-ripple-left" />
+              <div className="relative flex flex-col items-center gap-1 z-10">
+                {gestureLeft === 'comments' ? (
+                  <svg viewBox="0 0 24 24" className="w-10 h-10 fill-white drop-shadow-lg"><path d="M21 6.5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2h14l4 4V6.5z"/></svg>
+                ) : (
+                  <>
+                    <div className="flex gap-0.5">
+                      {[0,1,2].map(i => (
+                        <svg key={i} viewBox="0 0 24 24" className="w-5 h-5 fill-white drop-shadow" style={{opacity: 1 - i*0.25}}>
+                          <path d="M6 6l-4 6 4 6V6zm8 0l-4 6 4 6V6z"/>
+                        </svg>
+                      ))}
+                    </div>
+                    <span className="text-white text-sm font-bold drop-shadow-lg">{gestureLeft}s</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* CENTER — play/pause/next */}
+          {gestureCenter && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
+              <div className="yt-center-pop">
+                {gestureCenter === 'play' && (
+                  <svg viewBox="0 0 24 24" className="w-16 h-16 fill-white drop-shadow-2xl"><path d="M8 5v14l11-7z"/></svg>
+                )}
+                {gestureCenter === 'pause' && (
+                  <svg viewBox="0 0 24 24" className="w-16 h-16 fill-white drop-shadow-2xl"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                )}
+                {gestureCenter === 'next' && (
+                  <svg viewBox="0 0 24 24" className="w-16 h-16 fill-white drop-shadow-2xl"><path d="M6 18l8.5-6L6 6v12zm2-8.14L11.03 12 8 14.14V9.86zM16 6h2v12h-2z"/></svg>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* RIGHT — forward ripple */}
+          {gestureRight && (
+            <div className="absolute inset-y-0 right-0 w-1/3 flex items-center justify-center pointer-events-none z-40">
+              <div className="yt-ripple-right" />
+              <div className="relative flex flex-col items-center gap-1 z-10">
+                {gestureRight === 'close' ? (
+                  <svg viewBox="0 0 24 24" className="w-10 h-10 fill-white drop-shadow-lg"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                ) : (
+                  <>
+                    <div className="flex gap-0.5">
+                      {[2,1,0].map(i => (
+                        <svg key={i} viewBox="0 0 24 24" className="w-5 h-5 fill-white drop-shadow" style={{opacity: 1 - i*0.25}}>
+                          <path d="M10 6l4 6-4 6V6zm6 0v12h4V6h-4z"/>
+                        </svg>
+                      ))}
+                    </div>
+                    <span className="text-white text-sm font-bold drop-shadow-lg">{gestureRight}s</span>
+                  </>
+                )}
+              </div>
             </div>
           )}
 
           {/* Gesture hint zones — visible on hover */}
-          <div className="absolute inset-0 z-10 flex pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <div className="flex-1 flex items-center justify-center text-white/20 text-xs font-black uppercase tracking-widest">⏪ Double tap</div>
-            <div className="flex-1 flex items-center justify-center text-white/20 text-xs font-black uppercase tracking-widest">Tap</div>
-            <div className="flex-1 flex items-center justify-center text-white/20 text-xs font-black uppercase tracking-widest">Double tap ⏩</div>
+          <div className="absolute inset-0 z-10 flex pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+            <div className="flex-1 flex items-end justify-center pb-16 text-white/20 text-[10px] font-bold uppercase tracking-widest">← double tap</div>
+            <div className="flex-1 flex items-end justify-center pb-16 text-white/20 text-[10px] font-bold uppercase tracking-widest">tap</div>
+            <div className="flex-1 flex items-end justify-center pb-16 text-white/20 text-[10px] font-bold uppercase tracking-widest">double tap →</div>
           </div>
 
           <div className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer" onClick={handleGestures}>
