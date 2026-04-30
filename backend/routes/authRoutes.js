@@ -28,9 +28,8 @@ const transporter = nodemailer.createTransport({
 
 // Task 4: Email OTP — fires in background, never blocks the response
 const sendEmailOTP = (toEmail, otp) => {
-  // No await — fire and forget so login responds instantly
   transporter.sendMail({
-    from: `"YouClone Security" <${process.env.EMAIL_USER}>`,
+    from: `"YouClone Security" <${process.env.EMAIL_USER}>`,  // verified Gmail sender
     to: toEmail,
     subject: 'Your YouClone OTP Code',
     html: `
@@ -49,7 +48,7 @@ const sendEmailOTP = (toEmail, otp) => {
   }).then(() => {
     console.log(`📧 OTP Email sent to ${toEmail}`);
   }).catch(err => {
-    console.error("💥 Nodemailer Failure (Handled):", err.message);
+    console.error("💥 Brevo Email Failure:", err.message, "| Code:", err.responseCode || '');
   });
 };
 
