@@ -17,40 +17,60 @@ export default function RootLayout({
 
   const isSpecialPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname.startsWith('/call');
 
-  // ✅ SAFE THEME LOGIC
-useEffect(() => {
-  const applyRegionalTheme = async () => {
-    try {
-      const now = new Date();
-      const hours = now.getHours();
-      // Requirement: 10:00 AM to 12:00 PM
-      const isMorningSlot = hours >= 10 && hours < 12;
+  // ✅ THEME LOGIC — IP-based location + time check
+  useEffect(() => {
+    const applyRegionalTheme = async () => {
+      try {
+        const now = new Date();
+        // Convert to IST (UTC+5:30)
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const istTime = new Date(now.getTime() + istOffset - (now.getTimezoneOffset() * 60 * 1000));
+        const hours = istTime.getHours();
+        const isMorningSlot = hours >= 10 && hours < 12;
 
-      // Use a faster fallback for location
-      const response = await fetch('https://ipapi.co/json/').catch(() => null);
-      const data = response ? await response.json() : { region: 'Telangana' }; // Fallback to your home region
-      
-      const southIndiaStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
-      const isSouthIndia = southIndiaStates.includes(data.region);
-      
-      // Determine theme
-      const shouldBeLight = isMorningSlot && isSouthIndia;
-      const selectedTheme = shouldBeLight ? 'light' : 'dark';
+        // Try multiple IP geolocation APIs for reliability
+        let region = '';
+        try {
+          const r1 = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) });
+          const d1 = await r1.json();
+          region = d1.region || d1.region_name || '';
+        } catch {
+          try {
+            const r2 = await fetch('https://ip-api.com/json/?fields=regionName', { signal: AbortSignal.timeout(3000) });
+            const d2 = await r2.json();
+            region = d2.regionName || '';
+          } catch {
+            // Use saved location from localStorage as last fallback
+            region = localStorage.getItem('userLocation') || '';
+          }
+        }
 
-      setTheme(selectedTheme);
-      
-      const root = document.documentElement;
-      root.classList.remove('light', 'dark');
-      root.classList.add(selectedTheme);
-      root.style.colorScheme = selectedTheme;
-      
-    } catch (error) {
-      setTheme('dark');
-      document.documentElement.classList.add('dark');
-    }
-  };
-  applyRegionalTheme();
-}, []);
+        const southIndiaStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
+        const regionLower = region.toLowerCase();
+        const isSouthIndia = southIndiaStates.some(s => regionLower.includes(s.toLowerCase()))
+          || regionLower.includes('hyderabad')
+          || regionLower.includes('secunderabad');
+
+        const shouldBeLight = isMorningSlot && isSouthIndia;
+        const selectedTheme = shouldBeLight ? 'light' : 'dark';
+
+        setTheme(selectedTheme);
+        const root = document.documentElement;
+        root.classList.remove('light', 'dark');
+        root.classList.add(selectedTheme);
+        root.style.colorScheme = selectedTheme;
+
+        // Store for debugging
+        console.log(`🎨 Theme: ${selectedTheme} | Region: ${region} | IST Hour: ${hours} | South India: ${isSouthIndia} | Morning: ${isMorningSlot}`);
+
+      } catch (error) {
+        console.warn('Theme detection failed, defaulting to dark');
+        setTheme('dark');
+        document.documentElement.classList.add('dark');
+      }
+    };
+    applyRegionalTheme();
+  }, []);
 
 
   return (

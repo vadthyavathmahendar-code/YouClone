@@ -41,10 +41,25 @@ const sendEmailOTP = async (toEmail, otp) => {
   }
 };
 
-// Task 4: SMS OTP — disabled (Twilio credentials invalid, using email only)
+// Task 4: SMS OTP — Twilio integration
 const sendMobileOTP = async (toNumber, otp) => {
-  console.warn("⚠️ SMS OTP disabled - using email OTP instead");
-  return false;
+  try {
+    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
+      console.warn("⚠️ Twilio credentials missing");
+      return false;
+    }
+    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    await client.messages.create({
+      body: `[YouClone] Your OTP is: ${otp}. Valid for 10 minutes.`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: toNumber
+    });
+    console.log(`📱 SMS OTP sent to ${toNumber}`);
+    return true;
+  } catch (error) {
+    console.error("💥 Twilio Error:", error.message, "Code:", error.code);
+    return false;
+  }
 };
 
 // Task 4: Regional Logic Gate
@@ -159,44 +174,44 @@ router.post('/login', async (req, res) => {
     user.otpExpiry = new Date(Date.now() + 10 * 60000); 
     await user.save();
 
-    // 3. ALWAYS send Email OTP (reliable) + try SMS as bonus for non-South India
+    // 3. REGIONAL OTP DISPATCH
     if (isSouthIndia(user.location)) {
-      // South India — Email OTP (primary)
+      // ── SOUTH INDIA → Email OTP ──
       await sendEmailOTP(user.email, otp);
-      console.log(`📧 OTP sent to email: ${user.email} | OTP: ${otp}`);
-      
+      console.log(`📧 [South India] Email OTP → ${user.email}`);
       return res.status(200).json({ 
         requiresOTP: true, 
         authType: "email", 
-        email: user.email 
+        email: user.email,
+        message: "OTP sent to your registered email address"
       });
-
     } else {
-      // Other regions — try SMS, but ALWAYS send email as well
-      await sendEmailOTP(user.email, otp); // Always send email
-      console.log(`📧 OTP also sent to email: ${user.email} | OTP: ${otp}`);
-
+      // ── OTHER REGIONS → SMS OTP (with email fallback) ──
+      let smsSent = false;
       if (user.phone) {
         const formattedPhone = user.phone.startsWith('+') ? user.phone : `+91${user.phone}`;
-        const smsSent = await sendMobileOTP(formattedPhone, otp);
-        
+        smsSent = await sendMobileOTP(formattedPhone, otp);
         if (smsSent) {
+          // Also send email as backup
+          sendEmailOTP(user.email, otp);
+          console.log(`📱 [Other Region] SMS OTP → ${formattedPhone}`);
           return res.status(200).json({ 
             requiresOTP: true, 
             authType: "mobile", 
             email: user.email,
             mobile: formattedPhone,
-            message: "OTP sent to your mobile and email"
+            message: "OTP sent to your registered mobile number"
           });
         }
       }
-
-      // SMS not available or failed — email already sent above
+      // SMS failed or no phone — fallback to email
+      await sendEmailOTP(user.email, otp);
+      console.log(`📧 [Other Region - SMS fallback] Email OTP → ${user.email}`);
       return res.status(200).json({ 
         requiresOTP: true, 
         authType: "email", 
         email: user.email,
-        message: "OTP sent to your email"
+        message: "OTP sent to your registered email address"
       });
     }
   } catch (err) {

@@ -138,9 +138,14 @@ export default function LoginPage() {
                 <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-start gap-4 mb-6">
                   {authType === 'email' ? <Mail className="text-red-500 mt-1" size={20}/> : <Smartphone className="text-red-500 mt-1" size={20}/>}
                   <div>
-                    <p className="text-xs font-bold">Action Required</p>
+                    <p className="text-xs font-bold">
+                      {authType === 'email' ? '📧 Check your email' : '📱 Check your phone'}
+                    </p>
                     <p className="text-[10px] opacity-60 mt-1 leading-relaxed">
-                      Based on your region, an OTP has been dispatched to your registered {authType === 'email' ? 'email address' : 'mobile device'}.
+                      {authType === 'email' 
+                        ? `A 6-digit OTP has been sent to your registered email address. Check your inbox and spam folder.`
+                        : `A 6-digit OTP has been sent to your registered mobile number via SMS.`
+                      }
                     </p>
                   </div>
                 </div>
