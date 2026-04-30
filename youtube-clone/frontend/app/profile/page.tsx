@@ -31,6 +31,9 @@ useEffect(() => {
     // 🛑 GUARD: Redirect if no session exists
     if (!token || !email || email === "null" || email === "undefined") {
       console.warn("⚠️ No valid session, redirecting to login");
+      // Clear any stale data before redirecting
+      localStorage.removeItem("token");
+      localStorage.removeItem("userEmail");
       router.push('/login');
       return;
     }

@@ -62,14 +62,14 @@ export default function LoginPage() {
       if (res.ok) {
         // Full Authentication Complete
         localStorage.setItem("token", data.token);
-        localStorage.setItem("userEmail", data.user.email);
-        localStorage.setItem("userPlan", data.user.plan);
-        localStorage.setItem("userName", data.user.name);
+        localStorage.setItem("userEmail", data.user?.email || email); // fallback to form email
+        localStorage.setItem("userPlan", data.user?.plan || "Free");
+        localStorage.setItem("userName", data.user?.name || "User");
         
         // Push to the Walled Garden
         router.push("/home");
       } else {
-        alert(data.message || "Invalid OTP.");
+        alert(data.message || data.error || "Invalid OTP.");
       }
     } catch (err) {
       alert("Verification Error.");

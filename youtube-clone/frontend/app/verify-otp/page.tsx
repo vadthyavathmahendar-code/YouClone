@@ -36,17 +36,16 @@ export default function VerifyOTP() {
       if (res.ok) {
         // 🔥 THE FIX: Now we set the REAL email and token
         localStorage.setItem("token", data.token);
-        localStorage.setItem("userEmail", data.user.email);
-        localStorage.setItem("userName", data.user.name);
-        localStorage.setItem("userPlan", data.user.plan);
+        localStorage.setItem("userEmail", data.user?.email || email);
+        localStorage.setItem("userName", data.user?.name || "User");
+        localStorage.setItem("userPlan", data.user?.plan || "Free");
         
         // Remove the temporary pending email
         localStorage.removeItem("pendingEmail");
 
-        alert("✅ Authorization Successful. Entering Secunderabad Node.");
         router.push("/home");
       } else {
-        alert(data.error || "Invalid OTP");
+        alert(data.error || data.message || "Invalid OTP");
       }
     } catch (err) {
       alert("System Error during verification.");
