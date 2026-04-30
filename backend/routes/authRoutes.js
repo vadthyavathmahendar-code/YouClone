@@ -20,8 +20,11 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
   tls: { rejectUnauthorized: false },
-  pool: true,          // keep connection alive
+  pool: true,
   maxConnections: 3,
+  connectionTimeout: 10000,  // 10 seconds
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
 });
 
 // Task 4: Email OTP — fires in background, never blocks the response
@@ -51,10 +54,28 @@ const sendEmailOTP = (toEmail, otp) => {
   });
 };
 
-// Task 4: SMS OTP — Twilio credentials invalid (error 20003), disabled
+// Task 4: SMS OTP via Twilio
 const sendMobileOTP = async (toNumber, otp) => {
-  console.warn("⚠️ SMS OTP skipped - Twilio credentials invalid. Using email OTP.");
-  return false;
+  try {
+    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
+      console.warn("⚠️ Twilio env vars missing");
+      return false;
+    }
+    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    await client.messages.create({
+      body: `[YouClone] Your OTP is: ${otp}. Valid for 10 minutes.`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: toNumber
+    });
+    console.log(`📱 SMS OTP sent to ${toNumber}`);
+    return true;
+  } catch (error) {
+    console.error(`💥 Twilio Error: ${error.message} Code: ${error.code}`);
+    if (error.code === 20003) {
+      console.error("❌ Twilio auth failed - update TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in Render env vars");
+    }
+    return false;
+  }
 };
 
 // Task 4: Regional Logic Gate
