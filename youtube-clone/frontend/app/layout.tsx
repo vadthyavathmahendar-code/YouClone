@@ -17,12 +17,12 @@ export default function RootLayout({
 
   const isSpecialPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname.startsWith('/call');
 
-  // ✅ THEME LOGIC — IP-based location + time check
+  // ✅ THEME LOGIC — time + user's saved location
   useEffect(() => {
     const applyRegionalTheme = async () => {
       try {
         const now = new Date();
-        // Get correct IST hour using Intl — works regardless of user's local timezone
+        // Correct IST hour using Intl API
         const istHour = parseInt(
           new Intl.DateTimeFormat('en-IN', {
             timeZone: 'Asia/Kolkata',
@@ -32,26 +32,20 @@ export default function RootLayout({
         );
         const isMorningSlot = istHour >= 10 && istHour < 12;
 
-        // Try multiple IP geolocation APIs for reliability
-        // Start with saved location as immediate fallback
+        // Use user's saved location first (most reliable)
+        // Fall back to IP geolocation only if no saved location
         let region = localStorage.getItem('userLocation') || '';
-        try {
-          const ctrl1 = new AbortController();
-          const t1 = setTimeout(() => ctrl1.abort(), 3000);
-          const r1 = await fetch('https://ipapi.co/json/', { signal: ctrl1.signal });
-          clearTimeout(t1);
-          const d1 = await r1.json();
-          region = d1.region || d1.region_name || region;
-        } catch {
+
+        if (!region) {
           try {
-            const ctrl2 = new AbortController();
-            const t2 = setTimeout(() => ctrl2.abort(), 3000);
-            const r2 = await fetch('https://ip-api.com/json/?fields=regionName', { signal: ctrl2.signal });
-            clearTimeout(t2);
-            const d2 = await r2.json();
-            region = d2.regionName || region;
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), 3000);
+            const r = await fetch('https://ipapi.co/json/', { signal: ctrl.signal });
+            clearTimeout(t);
+            const d = await r.json();
+            region = d.region || d.region_name || '';
           } catch {
-            // keep the localStorage fallback already set
+            region = '';
           }
         }
 
@@ -59,7 +53,13 @@ export default function RootLayout({
         const regionLower = region.toLowerCase();
         const isSouthIndia = southIndiaStates.some(s => regionLower.includes(s.toLowerCase()))
           || regionLower.includes('hyderabad')
-          || regionLower.includes('secunderabad');
+          || regionLower.includes('secunderabad')
+          || regionLower.includes('chennai')
+          || regionLower.includes('bangalore')
+          || regionLower.includes('bengaluru')
+          || regionLower.includes('kochi')
+          || regionLower.includes('vizag')
+          || regionLower.includes('visakhapatnam');
 
         const shouldBeLight = isMorningSlot && isSouthIndia;
         const selectedTheme = shouldBeLight ? 'light' : 'dark';
@@ -70,8 +70,7 @@ export default function RootLayout({
         root.classList.add(selectedTheme);
         root.style.colorScheme = selectedTheme;
 
-        // Store for debugging
-        console.log(`🎨 Theme: ${selectedTheme} | Region: ${region} | IST Hour: ${istHour} | South India: ${isSouthIndia} | Morning: ${isMorningSlot}`);
+        console.log(`🎨 Theme: ${selectedTheme} | Location: "${region}" | IST: ${istHour}:xx | SouthIndia: ${isSouthIndia} | Morning: ${isMorningSlot}`);
 
       } catch (error) {
         console.warn('Theme detection failed, defaulting to dark');
