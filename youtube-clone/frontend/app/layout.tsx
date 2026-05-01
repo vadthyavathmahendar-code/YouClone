@@ -32,21 +32,19 @@ export default function RootLayout({
         );
         const isMorningSlot = istHour >= 10 && istHour < 12;
 
-        // Use user's saved location first (most reliable)
-        // Fall back to IP geolocation only if no saved location
-        let region = localStorage.getItem('userLocation') || '';
-
-        if (!region) {
-          try {
-            const ctrl = new AbortController();
-            const t = setTimeout(() => ctrl.abort(), 3000);
-            const r = await fetch('https://ipapi.co/json/', { signal: ctrl.signal });
-            clearTimeout(t);
-            const d = await r.json();
-            region = d.region || d.region_name || '';
-          } catch {
-            region = '';
-          }
+        // IP geolocation first (actual access location per requirement)
+        // Fall back to saved profile location if IP API fails
+        let region = '';
+        try {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 3000);
+          const r = await fetch('https://ipapi.co/json/', { signal: ctrl.signal });
+          clearTimeout(t);
+          const d = await r.json();
+          region = d.region || d.region_name || '';
+        } catch {
+          // IP API failed — use saved profile location as fallback
+          region = localStorage.getItem('userLocation') || '';
         }
 
         const southIndiaStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
