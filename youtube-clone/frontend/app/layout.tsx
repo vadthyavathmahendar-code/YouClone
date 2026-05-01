@@ -22,21 +22,26 @@ export default function RootLayout({
     const applyRegionalTheme = async () => {
       try {
         const now = new Date();
-        // Convert to IST (UTC+5:30)
-        const istOffset = 5.5 * 60 * 60 * 1000;
-        const istTime = new Date(now.getTime() + istOffset - (now.getTimezoneOffset() * 60 * 1000));
-        const hours = istTime.getHours();
-        const isMorningSlot = hours >= 10 && hours < 12;
+        // Get correct IST hour using Intl — works regardless of user's local timezone
+        const istHour = parseInt(
+          new Intl.DateTimeFormat('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            hour: 'numeric',
+            hour12: false
+          }).format(now)
+        );
+        const isMorningSlot = istHour >= 10 && istHour < 12;
 
         // Try multiple IP geolocation APIs for reliability
-        let region = '';
+        // Start with saved location as immediate fallback
+        let region = localStorage.getItem('userLocation') || '';
         try {
           const ctrl1 = new AbortController();
           const t1 = setTimeout(() => ctrl1.abort(), 3000);
           const r1 = await fetch('https://ipapi.co/json/', { signal: ctrl1.signal });
           clearTimeout(t1);
           const d1 = await r1.json();
-          region = d1.region || d1.region_name || '';
+          region = d1.region || d1.region_name || region;
         } catch {
           try {
             const ctrl2 = new AbortController();
@@ -44,9 +49,9 @@ export default function RootLayout({
             const r2 = await fetch('https://ip-api.com/json/?fields=regionName', { signal: ctrl2.signal });
             clearTimeout(t2);
             const d2 = await r2.json();
-            region = d2.regionName || '';
+            region = d2.regionName || region;
           } catch {
-            region = localStorage.getItem('userLocation') || '';
+            // keep the localStorage fallback already set
           }
         }
 
@@ -66,7 +71,7 @@ export default function RootLayout({
         root.style.colorScheme = selectedTheme;
 
         // Store for debugging
-        console.log(`🎨 Theme: ${selectedTheme} | Region: ${region} | IST Hour: ${hours} | South India: ${isSouthIndia} | Morning: ${isMorningSlot}`);
+        console.log(`🎨 Theme: ${selectedTheme} | Region: ${region} | IST Hour: ${istHour} | South India: ${isSouthIndia} | Morning: ${isMorningSlot}`);
 
       } catch (error) {
         console.warn('Theme detection failed, defaulting to dark');

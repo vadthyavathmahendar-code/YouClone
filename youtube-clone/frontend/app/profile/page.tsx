@@ -168,6 +168,13 @@ export default function ProfilePage() {
             >
               Upgrade
             </Link>
+            <button
+              onClick={handleLogout}
+              title="Sign out"
+              className="p-2 hover:bg-red-50 dark:hover:bg-red-600/10 text-red-500 rounded-full transition-all border border-transparent hover:border-red-200 dark:hover:border-red-600/20"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
 
