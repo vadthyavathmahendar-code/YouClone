@@ -3,6 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force class-based dark mode — overrides system preference */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --yt-white: #ffffff;
   --yt-black: #0f0f0f;

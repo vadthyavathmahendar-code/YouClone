@@ -81,7 +81,7 @@ export default function RootLayout({
 
 
   return (
-    <html lang="en">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <title>YouClone | Secunderabad Node</title>
       </head>
