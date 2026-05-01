@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Home, Zap, PlaySquare, UserCircle, History, Music2, Film, Gamepad2, ListVideo, TrendingUp } from 'lucide-react';
+import { Home, Zap, PlaySquare, UserCircle, History, Music2, Film, Gamepad2, ListVideo, TrendingUp, LogOut } from 'lucide-react';
 import { Suspense } from 'react';
 
 const sections = [
@@ -93,7 +93,14 @@ function SidebarInner() {
       </nav>
 
       <div className="p-4 border-t border-gray-100 dark:border-white/5">
-        <p className="text-[10px] text-gray-400 dark:text-gray-600 font-bold uppercase tracking-widest leading-relaxed">
+        <button
+          onClick={() => { localStorage.clear(); window.location.href = '/'; }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group font-semibold text-[13px]"
+        >
+          <LogOut size={20} className="flex-shrink-0" />
+          Sign out
+        </button>
+        <p className="text-[10px] text-gray-400 dark:text-gray-600 font-bold uppercase tracking-widest leading-relaxed mt-2 px-3">
           © 2026 YouClone<br />Secunderabad Node
         </p>
       </div>
