@@ -27,7 +27,12 @@ export default function WatchPage() {
   const isLimitReached = watchTime >= PLAN_LIMITS[user?.plan || 'Free'];
 
   const [commentInput, setCommentInput] = useState("");
-  const [comments, setComments] = useState<any[]>([]);// 1. Initial Data Fetch: Load saved watchTime from DB
+  const [comments, setComments] = useState<any[]>([]);
+  const [videoLikes, setVideoLikes] = useState(0);
+  const [videoDislikes, setVideoDislikes] = useState(0);
+  const [userLiked, setUserLiked] = useState(false);
+  const [userDisliked, setUserDisliked] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);// 1. Initial Data Fetch: Load saved watchTime from DB
 useEffect(() => {
   const fetchData = async () => {
     const email = localStorage.getItem('userEmail');
@@ -58,6 +63,24 @@ useEffect(() => {
 
       const cRes = await fetch(`${API_URL}/api/comments/video/${id}`);
       setComments(await cRes.json());
+
+      // Load video likes/dislikes and subscription status
+      if (videoData && email) {
+        setVideoLikes(videoData.likes || 0);
+        setVideoDislikes(videoData.dislikes || 0);
+        setUserLiked((videoData.likedBy || []).includes(email));
+        setUserDisliked((videoData.dislikedBy || []).includes(email));
+
+        // Check subscription
+        const subRes = await fetch(`${API_URL}/api/videos/subscribe/check?subscriber=${email}&channel=${encodeURIComponent(videoData.channelName)}`);
+        if (subRes.ok) {
+          const subData = await subRes.json();
+          setSubscribed(subData.subscribed);
+        }
+
+        // Increment view count
+        fetch(`${API_URL}/api/videos/${id}/view`, { method: 'PUT' }).catch(() => {});
+      }
     } catch (err) { console.error("Node Sync failed", err); }
   };
   if (id) fetchData();
@@ -179,6 +202,35 @@ useEffect(() => {
       }
     }, 280);
   };
+const handleVideoVote = async (action: 'like' | 'dislike') => {
+  if (!user?.email) return;
+  try {
+    const res = await fetch(`${API_URL}/api/videos/${id}/vote`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, email: user.email })
+    });
+    const data = await res.json();
+    setVideoLikes(data.likes);
+    setVideoDislikes(data.dislikes);
+    setUserLiked(data.likedBy.includes(user.email));
+    setUserDisliked(data.dislikedBy.includes(user.email));
+  } catch (err) { console.error("Vote error:", err); }
+};
+
+const handleSubscribe = async () => {
+  if (!user?.email || !video?.channelName) return;
+  try {
+    const res = await fetch(`${API_URL}/api/videos/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscriber: user.email, channel: video.channelName })
+    });
+    const data = await res.json();
+    setSubscribed(data.subscribed);
+  } catch (err) { console.error("Subscribe error:", err); }
+};
+
 const handleDownload = async () => {
   // 1. Plan-based limit check
   const planLimits: Record<string, number> = { Free: 1, Bronze: 1, Silver: 5, Gold: Infinity };
@@ -444,11 +496,39 @@ const handlePostComment = async () => {
                 <p className="font-black text-lg leading-none tracking-tighter">{video.channelName}</p>
                 <p className="text-[10px] uppercase font-black opacity-30 mt-1 flex items-center gap-1"><MapPin size={10}/> {user?.location || "Secunderabad Node"}</p>
               </div>
+              <button
+                onClick={handleSubscribe}
+                className={`ml-2 px-4 py-2 rounded-full font-bold text-sm transition-all active:scale-95 ${
+                  subscribed
+                    ? 'bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-white/20'
+                    : 'bg-gray-900 dark:bg-white text-white dark:text-black hover:opacity-90'
+                }`}
+              >
+                {subscribed ? 'Subscribed ✓' : 'Subscribe'}
+              </button>
             </div>
-            <div className="flex items-center bg-gray-100 dark:bg-[#272727] rounded-full px-2 py-1">
-               <button onClick={handleDownload} className="flex items-center gap-2 ml-2 px-5 py-2 bg-red-600 text-white rounded-full font-black text-xs uppercase tracking-widest transition-transform active:scale-95">
-                 <Download size={18} /> Download
-               </button>
+            <div className="flex items-center gap-2">
+              {/* Like / Dislike */}
+              <div className="flex items-center bg-gray-100 dark:bg-[#272727] rounded-full overflow-hidden">
+                <button
+                  onClick={() => handleVideoVote('like')}
+                  className={`flex items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95 border-r border-gray-200 dark:border-white/10 ${userLiked ? 'text-blue-600 dark:text-blue-400' : 'hover:bg-gray-200 dark:hover:bg-white/10'}`}
+                >
+                  <ThumbsUp size={16} fill={userLiked ? 'currentColor' : 'none'} /> {videoLikes}
+                </button>
+                <button
+                  onClick={() => handleVideoVote('dislike')}
+                  className={`flex items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95 ${userDisliked ? 'text-red-500' : 'hover:bg-gray-200 dark:hover:bg-white/10'}`}
+                >
+                  <ThumbsDown size={16} fill={userDisliked ? 'currentColor' : 'none'} /> {videoDislikes}
+                </button>
+              </div>
+              {/* Download */}
+              <div className="flex items-center bg-gray-100 dark:bg-[#272727] rounded-full px-2 py-1">
+                <button onClick={handleDownload} className="flex items-center gap-2 ml-2 px-5 py-2 bg-red-600 text-white rounded-full font-black text-xs uppercase tracking-widest transition-transform active:scale-95">
+                  <Download size={18} /> Download
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -3,7 +3,7 @@ import { API_URL } from '../config';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Search, Video, Bell } from 'lucide-react';
+import { Search, Video, Bell, Upload } from 'lucide-react';
 
 export default function Navbar() {
   const router = useRouter();
@@ -101,6 +101,12 @@ export default function Navbar() {
         <button onClick={() => router.push('/call')}
           className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 group">
           <Video size={20} className="text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
+        </button>
+
+        {/* Upload */}
+        <button onClick={() => router.push('/upload')}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 group">
+          <Upload size={20} className="text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
         </button>
 
         {/* Notifications */}

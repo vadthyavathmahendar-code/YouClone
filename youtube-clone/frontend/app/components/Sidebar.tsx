@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Home, Zap, PlaySquare, UserCircle, History, Music2, Film, Gamepad2, ListVideo, TrendingUp, LogOut } from 'lucide-react';
+import { Home, Zap, PlaySquare, UserCircle, History, Music2, Film, Gamepad2, ListVideo, TrendingUp, LogOut, Upload } from 'lucide-react';
 import { Suspense } from 'react';
 
 const sections = [
@@ -19,6 +19,7 @@ const sections = [
       { icon: UserCircle, label: "Your Channel", href: "/profile" },
       { icon: History,    label: "History",      href: "/history" },
       { icon: ListVideo,  label: "Playlists",    href: "/playlists" },
+      { icon: Upload,     label: "Upload",       href: "/upload" },
     ]
   },
   {
