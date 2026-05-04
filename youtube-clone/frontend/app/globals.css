@@ -1,10 +1,7 @@
 @import "tailwindcss";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
-/* Force class-based dark mode — overrides system preference */
-@custom-variant dark (&:where(.dark, .dark *));
+/* Force class-based dark mode — Tailwind v4 syntax */
+@variant dark (&:where(.dark *));
 
 :root {
   --yt-white: #ffffff;

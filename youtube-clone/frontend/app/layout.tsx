@@ -68,6 +68,15 @@ export default function RootLayout({
         root.classList.add(selectedTheme);
         root.style.colorScheme = selectedTheme;
 
+        // Force background directly so it works regardless of Tailwind version
+        if (selectedTheme === 'light') {
+          document.body.style.backgroundColor = '#ffffff';
+          document.body.style.color = '#0f0f0f';
+        } else {
+          document.body.style.backgroundColor = '#050505';
+          document.body.style.color = '#ffffff';
+        }
+
         console.log(`🎨 Theme: ${selectedTheme} | Location: "${region}" | IST: ${istHour}:xx | SouthIndia: ${isSouthIndia} | Morning: ${isMorningSlot}`);
 
       } catch (error) {
