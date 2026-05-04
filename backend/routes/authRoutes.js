@@ -76,21 +76,21 @@ const sendMobileOTP = async (toNumber, otp) => {
   }
 };
 
-// Task 4: Regional Logic Gate
+// Task 4: Regional Logic Gate — uses explicit state field
 const southIndianStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
 
-const isSouthIndia = (location) => {
-  // 1. If no location, or it's your new default fallback, it's NOT South India logic
+const isSouthIndia = (state, location) => {
+  // Primary: use explicit state field (set during signup)
+  if (state && state !== 'Unknown') {
+    return southIndianStates.includes(state);
+  }
+  // Fallback: guess from location string (for old accounts without state field)
   if (!location || location === "Global Node" || location === "Unknown") return false;
-
   const loc = location.toLowerCase();
-
-  // 2. Check if the string contains any South Indian state name
-  const matchesState = southIndianStates.some(state => loc.includes(state.toLowerCase()));
-
-  // 3. Check for specific city keywords (Hyderabad/Secunderabad)
-  const matchesCity = loc.includes('hyderabad') || loc.includes('secunderabad');
-
+  const matchesState = southIndianStates.some(s => loc.includes(s.toLowerCase()));
+  const matchesCity = loc.includes('hyderabad') || loc.includes('secunderabad') ||
+    loc.includes('chennai') || loc.includes('bangalore') || loc.includes('bengaluru') ||
+    loc.includes('kochi') || loc.includes('vizag') || loc.includes('visakhapatnam');
   return matchesState || matchesCity;
 };
 // --- 2. AUTH ROUTES ---
@@ -98,7 +98,7 @@ const isSouthIndia = (location) => {
 // 1. SIGNUP: Updated for stability
 router.post('/signup', async (req, res) => {
   try {
-    const { name, email, password, location, phone } = req.body;
+    const { name, email, password, location, phone, state } = req.body;
     if (!email || !password) return res.status(400).json({ error: "Credentials required." });
 
     const existingUser = await User.findOne({ email });
@@ -112,9 +112,10 @@ router.post('/signup', async (req, res) => {
       email,
       password: hashedPassword,
       location: location || "Secunderabad",
+      state: state || "Unknown",
       phone: phone || "",
-      otp: otp, // Save OTP for verification
-      otpExpiry: new Date(Date.now() + 10 * 60000), 
+      otp: otp,
+      otpExpiry: new Date(Date.now() + 10 * 60000),
       plan: "Free",
       dailyDownloadCount: 0,
       lastDownloadDate: new Date()
@@ -122,14 +123,14 @@ router.post('/signup', async (req, res) => {
 
     await user.save();
 
-    // --- TASK 4: REGIONAL DISPATCH ---
-    if (isSouthIndia(user.location)) {
-      sendEmailOTP(user.email, otp); // fire and forget
-      console.log(`📧 Signup OTP dispatched to: ${user.email}`);
-      return res.status(200).json({ 
-        requiresOTP: true, 
-        authType: "email", 
-        message: "OTP sent to your email." 
+    // --- TASK 4: REGIONAL DISPATCH using explicit state ---
+    if (isSouthIndia(user.state, user.location)) {
+      sendEmailOTP(user.email, otp);
+      console.log(`📧 Signup OTP dispatched to: ${user.email} | State: ${user.state}`);
+      return res.status(200).json({
+        requiresOTP: true,
+        authType: "email",
+        message: "OTP sent to your email."
       });
     } else {
       if (user.phone) {
@@ -170,11 +171,11 @@ router.post('/login', async (req, res) => {
     user.otpExpiry = new Date(Date.now() + 10 * 60000); 
     await user.save();
 
-    // 3. REGIONAL OTP DISPATCH
-    if (isSouthIndia(user.location)) {
-      sendEmailOTP(user.email, otp); // fire and forget — responds instantly
-      console.log(`📧 [South India] Email OTP dispatched → ${user.email}`);
-      return res.status(200).json({ 
+    // 3. REGIONAL OTP DISPATCH — uses explicit state field
+    if (isSouthIndia(user.state, user.location)) {
+      sendEmailOTP(user.email, otp);
+      console.log(`📧 [South India - ${user.state}] Email OTP → ${user.email}`);
+      return res.status(200).json({
         requiresOTP: true, authType: "email", email: user.email,
         message: "OTP sent to your registered email address"
       });
@@ -184,17 +185,16 @@ router.post('/login', async (req, res) => {
         const formattedPhone = user.phone.startsWith('+') ? user.phone : `+91${user.phone}`;
         smsSent = await sendMobileOTP(formattedPhone, otp);
         if (smsSent) {
-          sendEmailOTP(user.email, otp); // backup email
-          return res.status(200).json({ 
+          sendEmailOTP(user.email, otp);
+          return res.status(200).json({
             requiresOTP: true, authType: "mobile", email: user.email,
             mobile: formattedPhone, message: "OTP sent to your registered mobile number"
           });
         }
       }
-      // SMS failed or no phone — email fallback
-      sendEmailOTP(user.email, otp); // fire and forget
-      console.log(`📧 [Other Region] Email OTP dispatched → ${user.email}`);
-      return res.status(200).json({ 
+      sendEmailOTP(user.email, otp);
+      console.log(`📧 [Other State - ${user.state}] Email OTP → ${user.email}`);
+      return res.status(200).json({
         requiresOTP: true, authType: "email", email: user.email,
         message: "OTP sent to your registered email address"
       });
