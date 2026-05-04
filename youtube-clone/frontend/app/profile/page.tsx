@@ -49,6 +49,7 @@ export default function ProfilePage() {
         setUser(userData);
         localStorage.setItem('userPlan', userData.plan);
         localStorage.setItem('userLocation', userData.location);
+        if (userData.state) localStorage.setItem('userState', userData.state);
         setFormData({
           name:        userData.name        || '',
           handle:      userData.handle      || userData.email?.split('@')[0] || '',

@@ -48,16 +48,27 @@ export default function RootLayout({
         }
 
         const southIndiaStates = ['Tamil Nadu', 'Kerala', 'Karnataka', 'Andhra Pradesh', 'Telangana'];
-        const regionLower = region.toLowerCase();
-        const isSouthIndia = southIndiaStates.some(s => regionLower.includes(s.toLowerCase()))
-          || regionLower.includes('hyderabad')
-          || regionLower.includes('secunderabad')
-          || regionLower.includes('chennai')
-          || regionLower.includes('bangalore')
-          || regionLower.includes('bengaluru')
-          || regionLower.includes('kochi')
-          || regionLower.includes('vizag')
-          || regionLower.includes('visakhapatnam');
+        
+        // Check state field first (most reliable — set during signup)
+        const savedState = localStorage.getItem('userState') || '';
+        let isSouthIndia = false;
+        
+        if (savedState && savedState !== 'Unknown') {
+          // Use explicit state from profile
+          isSouthIndia = southIndiaStates.includes(savedState);
+        } else {
+          // Fallback to IP geolocation region
+          const regionLower = region.toLowerCase();
+          isSouthIndia = southIndiaStates.some(s => regionLower.includes(s.toLowerCase()))
+            || regionLower.includes('hyderabad')
+            || regionLower.includes('secunderabad')
+            || regionLower.includes('chennai')
+            || regionLower.includes('bangalore')
+            || regionLower.includes('bengaluru')
+            || regionLower.includes('kochi')
+            || regionLower.includes('vizag')
+            || regionLower.includes('visakhapatnam');
+        }
 
         const shouldBeLight = isMorningSlot && isSouthIndia;
         const selectedTheme = shouldBeLight ? 'light' : 'dark';

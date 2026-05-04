@@ -42,6 +42,8 @@ export default function HomeDashboard() {
         const [userData, vData] = await Promise.all([uRes.json(), vRes.json()]);
         setUser(userData);
         setVideos(vData);
+        // Save state for theme detection
+        if (userData.state) localStorage.setItem('userState', userData.state);
       } catch (err) {
         console.error("Home fetch failed", err);
       } finally {
