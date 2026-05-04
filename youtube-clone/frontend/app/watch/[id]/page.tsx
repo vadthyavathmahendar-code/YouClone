@@ -28,6 +28,7 @@ export default function WatchPage() {
 
   const [commentInput, setCommentInput] = useState("");
   const [comments, setComments] = useState<any[]>([]);
+  const [allVideos, setAllVideos] = useState<any[]>([]); // for next video
   const [videoLikes, setVideoLikes] = useState(0);
   const [videoDislikes, setVideoDislikes] = useState(0);
   const [userLiked, setUserLiked] = useState(false);
@@ -37,9 +38,14 @@ useEffect(() => {
   const fetchData = async () => {
     const email = localStorage.getItem('userEmail');
     try {
-      const vRes = await fetch(`${API_URL}/api/videos/${id}`);
+      const [vRes, allRes] = await Promise.all([
+        fetch(`${API_URL}/api/videos/${id}`),
+        fetch(`${API_URL}/api/videos`)
+      ]);
       const videoData = await vRes.json();
+      const allData = await allRes.json();
       setVideo(videoData);
+      setAllVideos(allData);
       
       if (email) {
         // Fetch Profile - Includes totalWatchTime from DB
@@ -190,14 +196,30 @@ useEffect(() => {
         }
       } else if (taps >= 3) {
         if (isRight) {
+          // Close: go back in history, or home if no history
           flashRight('close');
-          setTimeout(() => window.close(), 600);
+          setTimeout(() => {
+            if (window.history.length > 1) {
+              window.history.back();
+            } else {
+              router.push('/home');
+            }
+          }, 400);
         } else if (isLeft) {
           flashLeft('comments');
           document.getElementById('comment-box')?.scrollIntoView({ behavior: 'smooth' });
         } else {
+          // Next video: pick the next one in the list
           flashCenter('next');
-          setTimeout(() => router.push('/home'), 500);
+          setTimeout(() => {
+            if (allVideos.length > 1) {
+              const currentIndex = allVideos.findIndex((v: any) => v._id === id);
+              const nextIndex = (currentIndex + 1) % allVideos.length;
+              router.push(`/watch/${allVideos[nextIndex]._id}`);
+            } else {
+              router.push('/home');
+            }
+          }, 400);
         }
       }
     }, 280);
